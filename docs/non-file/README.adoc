@@ -1,0 +1,5 @@
+= Summary
+
+* link:README.adoc[Non-File Interfaces]
+** link:chap-Managing_Object_Store.adoc[Managing Object Store]
+** link:chap-Administering_the_Hortonworks_Data_Platform_on_Gluster.adoc[Managing Hortonworks Data Platform]

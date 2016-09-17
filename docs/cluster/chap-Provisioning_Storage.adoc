@@ -1,0 +1,306 @@
+[[chap-Provisioning_Storage]]
+= Provisioning Storage
+
+Amazon Elastic Block Storage (EBS) is designed specifically for use with
+Amazon EC2 instances. Amazon EBS provides storage that behaves like a
+raw, unformatted, external block device.
+
+_________________________________________________________________________________________________________________________________________________________________________________
+*Important*
+
+External snapshots, such as snapshots of a virtual machine/instance,
+where {{ book.productTitle }} Server is installed as a guest OS or
+FC/iSCSI SAN snapshots are not supported.
+_________________________________________________________________________________________________________________________________________________________________________________
+
+[[Provisioning_Storage_for_Two-way_Replication_Volumes]]
+= Provisioning Storage for Two-way Replication Volumes
+
+The supported configuration for two-way replication is upto 24 Amazon
+EBS volumes of equal size, attached as a brick, which enables consistent
+I/O performance. You can create a brick ranging from 24 GB to 24 TB. For
+example, if you create a brick of 128 GB, you must create 8 Amazon EBS
+volumes of size 16 GB.
+
+Single EBS volumes exhibit inconsistent I/O performance. Hence, other
+configurations are not supported by Red Hat.
+
+*To Add Amazon Elastic Block Storage Volumes*
+
+1.  Login to Amazon Web Services at http://aws.amazon.com[] and select
+the Amazon EC2 tab.
+2.  In the Amazon EC2 Dashboard select the Elastic Block Store > Volumes
+option to add the Amazon Elastic Block Storage Volumes
+3.  Create a thinly provisioned logical volume using the following
+steps:
+1.  Create a physical volume (PV) by using the `pvcreate` command.
++
+For example:
++
+---------------------------------------
+pvcreate --dataalignment 1280K /dev/sdb
+---------------------------------------
++
+Here, `/dev/sdb` is a storage device.
++
+Use the correct `dataalignment` option based on your device. For more
+information, see <<chap-Configuring_Gluster_for_Enhancing_Performance.adoc#Brick_Configuration,
+Brick Configuration>>.
++
+____________________________________________________________________________________
+*Note*
+
+The device name and the alignment value will vary based on the device
+you are using.
+____________________________________________________________________________________
+2.  Create a Volume Group (VG) from the PV using the `vgcreate` command:
++
+For example:
++
+--------------------------------------------------
+vgcreate --physicalextentsize 128K rhs_vg /dev/sdb
+--------------------------------------------------
+3.  Create a thin-pool using the following commands:
+1.  Create an LV to serve as the metadata device using the following
+command:
++
+-----------------------------------------------------------
+lvcreate -L metadev_sz --name metadata_device_name VOLGROUP
+-----------------------------------------------------------
++
+For example:
++
+-------------------------------------------------
+lvcreate -L 16776960K --name rhs_pool_meta rhs_vg
+-------------------------------------------------
+2.  Create an LV to serve as the data device using the following
+command:
++
+------------------------------------------------
+lvcreate -L datadev_sz --name thin_pool VOLGROUP
+------------------------------------------------
++
+For example:
++
+---------------------------------------------
+lvcreate -L 536870400K --name rhs_pool rhs_vg
+---------------------------------------------
+3.  Create a thin pool from the data LV and the metadata LV using the
+following command:
++
+-------------------------------------------------------------------------------------------------------------
+lvconvert --chunksize STRIPE_WIDTH --thinpool VOLGROUP/thin_pool --poolmetadata VOLGROUP/metadata_device_name
+-------------------------------------------------------------------------------------------------------------
++
+For example:
++
+------------------------------------------------------------------------------------------
+lvconvert --chunksize 1280K --thinpool rhs_vg/rhs_pool --poolmetadata rhs_vg/rhs_pool_meta
+------------------------------------------------------------------------------------------
++
+___________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+*Note*
+
+By default, the newly provisioned chunks in a thin pool are zeroed to
+prevent data leaking between different block devices. In the case of
+{{ book.productTitle }}, where data is accessed via a file system, this
+option can be turned off for better performance.
+
+------------------------------------
+lvchange --zero n VOLGROUP/thin_pool
+------------------------------------
+
+For example:
+
+---------------------------------
+lvchange --zero n rhs_vg/rhs_pool
+---------------------------------
+___________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+4.  Create a thinly provisioned volume from the previously created pool
+using the `lvcreate` command:
++
+For example:
++
+-------------------------------------------
+lvcreate -V 1G -T rhs_vg/rhs_pool -n rhs_lv
+-------------------------------------------
++
+It is recommended that only one LV should be created in a thin pool.
+4.  Format the logical volume using the following command:
++
+-----------------------------
+# mkfs.xfs -i size=512 DEVICE
+-----------------------------
++
+For example, to format `/dev/glustervg/glusterlv`:
++
+-----------------------------------------------
+# mkfs.xfs -i size=512 /dev/glustervg/glusterlv
+-----------------------------------------------
+5.  Mount the device using the following commands:
++
+--------------------------------------------------
+# mkdir -p /export/glusterlv
+# mount /dev/glustervg/glusterlv /export/glusterlv
+--------------------------------------------------
+6.  Using the following command, add the device to `/etc/fstab` so that
+it mounts automatically when the system reboots:
++
+----------------------------------------------------------------------------------
+# echo "/dev/glustervg/glusterlv /export/glusterlv xfs defaults 0 2" >> /etc/fstab
+----------------------------------------------------------------------------------
+
+After adding the EBS volumes, you can use the mount point as a brick
+with existing and new volumes. For more information on creating volumes,
+see <<chap-Gluster_Volumes>>.
+
+[[Provisioning_Storage_for_Three-way_Replication_Volumes]]
+= Provisioning Storage for Three-way Replication Volumes
+
+{{ book.productTitle }} supports synchronous three-way replication
+across three availability zones. Three-way replication is supported only
+with JBOD configuration. You must use one EBS volume as one storage
+brick. For information on best practices while configuring a JBOD, see
+<<JBOD>>.
+
+1.  Login to Amazon Web Services at http://aws.amazon.com[] and select
+the Amazon EC2 tab.
+2.  Create three AWS instances in three different availability zones.
+All the bricks of a replica pair must be from different availability
+zones. For each replica set, select the instances for the bricks from
+three different availability zones. A replica pair must not have a brick
+along with its replica from the same availability zone.
+3.  Add single EBS volume to each AWS instances
+4.  Create a thinly provisioned logical volume using the following
+steps:
+1.  Create a physical volume (PV) by using the `pvcreate` command.
++
+For example:
++
+---------------------------------------
+pvcreate --dataalignment 1280K /dev/sdb
+---------------------------------------
++
+Here, `/dev/sdb` is a storage device.
++
+Use the correct `dataalignment` option based on your device. For more
+information, see <<chap-Configuring_Gluster_for_Enhancing_Performance.adoc#Brick_Configuration,
+Brick Configuration>>.
++
+____________________________________________________________________________________
+*Note*
+
+The device name and the alignment value will vary based on the device
+you are using.
+____________________________________________________________________________________
+2.  Create a Volume Group (VG) from the PV using the `vgcreate` command:
++
+For example:
++
+--------------------------------------------------
+vgcreate --physicalextentsize 128K rhs_vg /dev/sdb
+--------------------------------------------------
+3.  Create a thin-pool using the following commands:
+1.  Create an LV to serve as the metadata device using the following
+command:
++
+-----------------------------------------------------------
+lvcreate -L metadev_sz --name metadata_device_name VOLGROUP
+-----------------------------------------------------------
++
+For example:
++
+-------------------------------------------------
+lvcreate -L 16776960K --name rhs_pool_meta rhs_vg
+-------------------------------------------------
+2.  Create an LV to serve as the data device using the following
+command:
++
+------------------------------------------------
+lvcreate -L datadev_sz --name thin_pool VOLGROUP
+------------------------------------------------
++
+For example:
++
+---------------------------------------------
+lvcreate -L 536870400K --name rhs_pool rhs_vg
+---------------------------------------------
+3.  Create a thin pool from the data LV and the metadata LV using the
+following command:
++
+-------------------------------------------------------------------------------------------------------------
+lvconvert --chunksize STRIPE_WIDTH --thinpool VOLGROUP/thin_pool --poolmetadata VOLGROUP/metadata_device_name
+-------------------------------------------------------------------------------------------------------------
++
+For example:
++
+------------------------------------------------------------------------------------------
+lvconvert --chunksize 1280K --thinpool rhs_vg/rhs_pool --poolmetadata rhs_vg/rhs_pool_meta
+------------------------------------------------------------------------------------------
++
+___________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+*Note*
+
+By default, the newly provisioned chunks in a thin pool are zeroed to
+prevent data leaking between different block devices. In the case of
+{{ book.productTitle }}, where data is accessed via a file system, this
+option can be turned off for better performance.
+
+------------------------------------
+lvchange --zero n VOLGROUP/thin_pool
+------------------------------------
+
+For example:
+
+---------------------------------
+lvchange --zero n rhs_vg/rhs_pool
+---------------------------------
+___________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+4.  Create a thinly provisioned volume from the previously created pool
+using the `lvcreate` command:
++
+For example:
++
+-------------------------------------------
+lvcreate -V 1G -T rhs_vg/rhs_pool -n rhs_lv
+-------------------------------------------
++
+It is recommended that only one LV should be created in a thin pool.
+5.  Format the logical volume using the following command:
++
+-----------------------------
+# mkfs.xfs -i size=512 DEVICE
+-----------------------------
++
+For example, to format `/dev/glustervg/glusterlv`:
++
+-----------------------------------------------
+# mkfs.xfs -i size=512 /dev/glustervg/glusterlv
+-----------------------------------------------
+6.  Mount the device using the following commands:
++
+--------------------------------------------------
+# mkdir -p /export/glusterlv
+# mount /dev/glustervg/glusterlv /export/glusterlv
+--------------------------------------------------
+7.  Using the following command, add the device to `/etc/fstab` so that
+it mounts automatically when the system reboots:
++
+----------------------------------------------------------------------------------
+# echo "/dev/glustervg/glusterlv /export/glusterlv xfs defaults 0 2" >> /etc/fstab
+----------------------------------------------------------------------------------
+
+*Client-side Quorum*
+
+You must ensure to create each replica set of a volume in three
+difference zones. With this configuration, there will be no impact on
+the data availability even if two availability zones have hit an outage.
+However, when you set `client-side quorum` to avoid split-brain
+scenarios, unavailability of two zones would make the access
+`read-only`.
+
+For information on creating three-way replicated volumes, see
+<<../architecture/chap-Gluster_Volumes.adoc#sect-Creating_Distributed_Replicated_Volumes,
+Creating Distributed Replicated Volumes>>.  For
+more information on configuring client-side quorum, see
+<<Configuring_Client-Side_Quorum>>.

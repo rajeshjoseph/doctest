@@ -1,0 +1,87 @@
+[[chap-Key_Features]]
+= Key Features
+
+This chapter lists the key features of {{ book.productTitle }}.
+
+[[Elasticity]]
+= Elasticity
+
+Storage volumes are abstracted from the underlying hardware and can
+grow, shrink, or be migrated across physical systems as necessary.
+Storage system servers can be added or removed as needed with data
+rebalanced across the trusted storage pool. Data is always online and
+there is no application downtime. File system configuration changes are
+accepted at runtime and propagated throughout the trusted storage pool,
+allowing changes to be made dynamically for performance tuning, or as
+workloads fluctuate.
+
+[[No_Metadata_with_the_Elastic_Hashing_Algorithm]]
+= No Metadata with the Elastic Hashing Algorithm
+
+Unlike other storage systems with a distributed file system,
+{{ book.productTitle }} does not create, store, or use a separate metadata
+index. Instead, {{ book.productTitle }} places and locates files
+algorithmically. All storage node servers in the trusted storage pool
+can locate any piece of data without looking it up in an index or
+querying another server. {{ book.productTitle }} uses an elastic hashing
+algorithm to locate data in the storage pool, removing a common source
+of I/O bottlenecks and single point of failure. Data access is fully
+parallelized and performance scales linearly.
+
+[[Scalability]]
+= Scalability
+
+{{ book.productTitle }} is designed to scale for both performance and
+capacity. Aggregating the disk, CPU, and I/O resources of large numbers
+of commodity hardware can create one large and high-performing storage
+pool with {{ book.productTitle }}. More capacity can be added by adding
+more disks, while performance can be improved by deploying disks between
+more server nodes.
+
+[[High_Availability_and_Flexibility]]
+= High Availability and Flexibility
+
+Synchronous n-way file replication ensures high data availability and
+local recovery. Asynchronous geo-replication ensures resilience across
+data centers and regions. Both synchronous n-way and geo-replication
+asynchronous data replication are supported in the private cloud, data
+center, public cloud, and hybrid cloud environments. Within the AWS
+cloud, {{ book.productTitle }} supports n-way synchronous replication
+across Availability Zones and asynchronous geo-replication across AWS
+Regions. In fact, {{ book.productTitle }} is the only way to ensure high
+availability for NAS storage within the AWS infrastructure.
+
+[[Flexibility]]
+= Flexibility
+
+{{ book.productTitle }} runs in the user space, eliminating the need for
+complex kernel patches or dependencies. You can also reconfigure storage
+performance characteristics to meet changing storage needs.
+
+[[No_Application_Rewrites]]
+= No Application Rewrites
+
+{{ book.productTitle }} servers are POSIX compatible and use XFS file
+system format to store data on disks, which can be accessed using
+industry-standard access protocols including NFS and SMB. Thus, there is
+no need to rewrite applications when moving data to the cloud as is the
+case with traditional cloud-based object storage solutions.
+
+[[Simple_Management]]
+= Simple Management
+
+{{ book.productTitle }} allows you to build a scale-out storage system
+that is highly secure within minutes. It provides a very simple, single
+command for storage management. It also includes performance monitoring
+and analysis tools like `Top` and `Profile`. `Top` provides visibility
+into workload patterns, while `Profile` provides performance statistics
+over a user-defined time period for metrics including latency and amount
+of data read or written.
+
+[[Modular_Stackable_Design]]
+= Modular, Stackable Design
+
+Users can configure and tune {{ book.productTitle }} servers to deliver
+high performance for a wide range of workloads. This stackable design
+allows users to combine modules as needed depending on storage
+requirements and workload profiles.

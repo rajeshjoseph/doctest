@@ -1,0 +1,12 @@
+= Summary
+
+* link:README.adoc[Appendices]
+** link:chap-Troubleshooting.adoc[Troubleshooting]
+** link:chap-Recommended_Configuration_Dispersed_Volumes.adoc[Recommended Configurations - Dispersed Volume]
+** link:chap-Nagios_Configuration_Files.adoc[Nagios Configuration Files]
+** link:chap-Manually_Resolving_Splitbrains.adoc[Manually Recovering File Split-brain]
+{% if book.productTitle == "GlusterFS" %}
+** link:Bareos.adoc[Bareos on GlusterFS]
+** link:puppet.adoc[Puppet-Gluster]
+** link:GlusterFS-iSCSI.adoc[GlusterFS iSCSI]
+{% endif %}

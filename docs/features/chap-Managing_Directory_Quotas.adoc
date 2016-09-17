@@ -1,0 +1,397 @@
+[[chap-Managing_Directory_Quotas]]
+= Managing Directory Quotas
+
+Directory quotas allow you to set limits on disk space used by
+directories or the volume. Storage administrators can control the disk
+space utilization at the directory or the volume level, or both. This is
+particularly useful in cloud deployments to facilitate the use of
+utility billing models.
+
+[[Enabling_Quotas]]
+= Enabling Quotas
+
+You must enable directory quotas to set disk limits.
+
+Enable quotas on a volume using the following command:
+
+`# gluster volume quota VOLNAME enable `
+
+For example, to enable quota on test-volume:
+
+-----------------------------------------
+# gluster volume quota test-volume enable
+volume quota : success
+-----------------------------------------
+
+_________________________________________________________________________________________
+*Important*
+
+* Do not enable quota using the `volume-set` command. This option is no
+longer supported.
+* Do not enable quota while `quota-remove-xattr.sh` is still running.
+_________________________________________________________________________________________
+
+[[Setting_Limits]]
+= Setting Limits
+
+______________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+*Note*
+
+* Before setting quota limits on any directory, ensure that there is at
+least one brick available per replica set.
++
+To see the current status of bricks of a volume, run the following
+command:
++
+--------------------------------------
+# gluster volume status VOLNAME status
+--------------------------------------
+* If the {{ book.productTitle }} volume is mounted at `/mntglusterfs`
+and you want to perform a certain function pertaining to Quota on
+`/mntglusterfs/dir`, then the path to be provided in any corresponding
+command should be `/dir`, where `/dir` is the absolute path relative to
+the {{ book.productTitle }} volume mount point.
+______________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+
+A Hard Limit is the maximum disk space you can utilize on a volume or
+directory.
+
+Set the hard limit for a directory in the volume with the following
+command, specifying the hard limit size in MB, GB, TB or PB:
+
+`# gluster volume quota VOLNAME limit-usage path hard_limit `
+
+For example:
+
+* To set a hard limit of 100GB on `/dir`:
++
+-----------------------------------------------------
+# gluster volume quota VOLNAME limit-usage /dir 100GB
+-----------------------------------------------------
+* To set a hard limit of 1TB for the volume:
++
+------------------------------------------------
+# gluster volume quota VOLNAME limit-usage / 1TB
+------------------------------------------------
+
+A Soft Limit is an attribute of a directory that is specified as a
+percentage of the hard limit. When disk usage reaches the soft limit of
+a given directory, the system begins to log this information in the logs
+of the brick on which data is written. The brick logs can be fount at:
+
+---------------------------------------------
+/var/log/glusterfs/bricks/<path-to-brick.log>
+---------------------------------------------
+
+By default, the soft limit is 80% of the hard limit.
+
+Set the soft limit for a volume with the following command, specifying
+the soft limit size as a percentage of the hard limit:
+
+`# gluster volume quota VOLNAME limit-usage path hard_limit soft_limit`
+
+For example:
+
+* To set the soft limit to 76% of the hard limit on `/dir`:
++
+---------------------------------------------------------
+# gluster volume quota VOLNAME limit-usage /dir 100GB 76%
+---------------------------------------------------------
+* To set the soft limit to 68% of the hard limit on the volume:
++
+----------------------------------------------------
+# gluster volume quota VOLNAME limit-usage / 1TB 68%
+----------------------------------------------------
+
+_______________________________________________________________________________________
+*Note*
+
+When setting the soft limit, ensure you retain the hard limit value
+previously created.
+_______________________________________________________________________________________
+
+[[Setting_the_Default_Soft_Limit]]
+= Setting the Default Soft Limit
+
+The default soft limit is an attribute of the volume that is specified
+as a percentage. The default soft limit for any volume is 80%.
+
+When you do not specify the soft limit along with the hard limit, the
+default soft limit is applied to the directory or volume.
+
+Configure the default soft limit value using the following command:
+
+`# gluster volume quota VOLNAME default-soft-limit soft_limit`
+
+For example, to set the default soft limit to 90% on test-volume run the
+following command:
+
+---------------------------------------------------------
+# gluster volume quota test-volume default-soft-limit 90%
+volume quota : success
+---------------------------------------------------------
+
+Ensure that the value is set using the following command:
+
+---------------------------------------
+# gluster volume quota test-volume list
+---------------------------------------
+
+_______________________________________________________________________________________________________________________________________________________________________________
+*Note*
+
+If you change the soft limit at the directory level and then change the
+volume's default soft limit, the directory-level soft limit previously
+configured will remain the same.
+_______________________________________________________________________________________________________________________________________________________________________________
+
+[[sect-Displaying_Quota_Limit_Information]]
+= Displaying Quota Limit Information
+
+You can display quota limit information on all of the directories on
+which a limit is set.
+
+To display quota limit information on all of the directories on which a
+limit is set, use the following command:
+
+`# gluster volume quota VOLNAME list`
+
+For example, to view the quota limits set on test-volume:
+
+------------------------------------------------------
+# gluster volume quota test-volume list
+Path       Hard-limit  Soft-limit   Used    Available
+------------------------------------------------------
+/           50GB        75%       0Bytes    50.0GB
+/dir        10GB        75%       0Bytes    10.0GB
+/dir/dir2   20GB        90%       0Bytes    20.0GB
+------------------------------------------------------
+
+To display disk limit information on a particular directory on which
+limit is set, use the following command:
+
+`# gluster volume quota VOLNAME list /<directory_name>`
+
+For example, to view limits set on /dir directory of the volume
+/test-volume :
+
+-------------------------------------------------
+# gluster volume quota test-volume list /dir
+Path  Hard-limit   Soft-limit   Used   Available
+-------------------------------------------------
+/dir   10.0GB          75%       0Bytes  10.0GB
+-------------------------------------------------
+
+To display disk limit information on multiple directories on which a
+limit is set, using the following command:
+
+`# gluster volume quota VOLNAME list /<directory_name1> /<directory_name2>`
+
+For example, to view quota limits set on directories /dir and /dir/dir2
+of volume test-volume :
+
+------------------------------------------------------
+# gluster volume quota test-volume list /dir /dir/dir2
+Path    Hard-limit   Soft-limit   Used     Available
+------------------------------------------------------
+/dir       10.0GB        75%        0Bytes     10.0GB
+/dir/dir2  20.0GB        90%        0Bytes     20.0GB
+------------------------------------------------------
+
+[[Displaying_Quota_Limit_Information_Using_the_df_Utility]]
+== Displaying Quota Limit Information Using the `df` Utility
+
+To report the disk usage using the `df` utility, taking quota limits
+into consideration, run the following command:
+
+-------------------------------------------------
+# gluster volume set VOLNAME quota-deem-statfs on
+-------------------------------------------------
+
+In this case, the total disk space of the directory is taken as the
+quota hard limit set on the directory of the volume.
+
+The following example displays the disk usage when `quota-deem-statfs`
+is off:
+
+---------------------------------------------------------------
+# gluster volume set test-volume features.quota-deem-statfs off
+volume set: success
+# gluster volume quota test-volume list
+Path        Hard-limit    Soft-limit     Used     Available
+-----------------------------------------------------------
+/              300.0GB        90%        11.5GB     288.5GB
+/John/Downloads 77.0GB        75%        11.5GB     65.5GB 
+---------------------------------------------------------------
+
+Disk usage for volume test-volume as seen on client1:
+
+---------------------------------------------------------------------
+# df -hT /home
+Filesystem           Type            Size  Used Avail Use% Mounted on
+server1:/test-volume fuse.glusterfs  400G   12G  389G   3% /home 
+---------------------------------------------------------------------
+
+The following example displays the disk usage when `quota-deem-statfs`
+is on:
+
+--------------------------------------------------------------
+# gluster volume set test-volume features.quota-deem-statfs on
+volume set: success
+# gluster vol quota test-volume list
+Path        Hard-limit    Soft-limit     Used     Available
+-----------------------------------------------------------
+/              300.0GB        90%        11.5GB     288.5GB
+/John/Downloads 77.0GB        75%        11.5GB     65.5GB
+--------------------------------------------------------------
+
+Disk usage for volume test-volume as seen on client1:
+
+----------------------------------------------------------------------
+# df -hT /home
+Filesystem            Type            Size  Used Avail Use% Mounted on
+server1:/test-volume  fuse.glusterfs  300G   12G  289G   4% /home
+----------------------------------------------------------------------
+
+The `quota-deem-statfs` option when set to on, allows the administrator
+to make the user view the total disk space available on the directory as
+the hard limit set on it.
+
+[[Setting_Timeout]]
+= Setting Timeout
+
+There are two types of timeouts that you can configure for a volume
+quota:
+
+* Soft timeout is the frequency at which the quota server-side
+translator checks the volume usage when the usage is below the soft
+limit. The soft timeout is in effect when the disk usage is less than
+the soft limit.
++
+To set the soft timeout, use the following command:
++
+`# gluster volume quota VOLNAME soft-timeout time`
++
+_______________________________________
+*Note*
+
+The default soft timeout is 60 seconds.
+_______________________________________
++
+For example, to set the soft timeout on test-volume to 1 minute:
++
+----------------------------------------------------
+# gluster volume quota test-volume soft-timeout 1min
+volume quota : success
+----------------------------------------------------
+* Hard timeout is the frequency at which the quota server-side
+translator checks the volume usage when the usage is above the soft
+limit. The hard timeout is in effect when the disk usage is between the
+soft limit and the hard limit.
++
+To set the hard timeout, use the following command:
++
+`# gluster volume quota VOLNAME hard-timeout time`
++
+______________________________________
+*Note*
+
+The default hard timeout is 5 seconds.
+______________________________________
++
+For example, to set the hard timeout for 30 seconds:
++
+---------------------------------------------------
+# gluster volume quota test-volume hard-timeout 30s
+volume quota : success
+---------------------------------------------------
++
+________________________________________________________________________________________________________________________________________________________________________________________________________
+*Note*
+
+As the margin of error for disk usage is proportional to the workload of
+the applications running on the volume, ensure that you set the
+hard-timeout and soft-timeout taking the workload into account.
+________________________________________________________________________________________________________________________________________________________________________________________________________
+
+[[Setting_Alert_Time]]
+= Setting Alert Time
+
+Alert time is the frequency at which you want your usage information to
+be logged after you reach the soft limit.
+
+To set the alert time, use the following command:
+
+`# gluster volume quota VOLNAME alert-time time`
+
+_________________________________
+*Note*
+
+The default alert-time is 1 week.
+_________________________________
+
+For example, to set the alert time to 1 day:
+
+------------------------------------------------
+# gluster volume quota test-volume alert-time 1d
+volume quota : success
+------------------------------------------------
+
+[[Removing_Disk_Limits]]
+= Removing Disk Limits
+
+You can remove disk limit usage settings on a given directory, if quota
+set is not required.
+
+Remove disk limit usage set on a particular directory using the
+following command:
+
+`# gluster volume quota VOLNAME remove /<directory-name>`
+
+For example, to remove the disk limit usage on /data directory of
+test-volume:
+
+-----------------------------------------------
+# gluster volume quota test-volume remove /data
+volume quota : success
+-----------------------------------------------
+
+For example, to remove quota from volume:
+
+----------------------------------------
+# gluster vol quota test-volume remove /
+volume quota : success
+----------------------------------------
+
+_________________________________________________________________________________________________________________
+*Note*
+
+Removing quota limit from the volume ("/" in the above example) does not
+impact quota limit usage on directories.
+_________________________________________________________________________________________________________________
+
+[[Disabling_Quotas]]
+= Disabling Quotas
+
+You can disable directory quotas using the following command:
+
+`# gluster volume quota VOLNAME disable `
+
+For example, to disable directory quotas on test-volume:
+
+-----------------------------------------------------------------------------------------
+# gluster volume quota test-volume disable
+Disabling quota will delete all the quota configuration. Do you want to continue? (y/n) y
+volume quota : success
+-----------------------------------------------------------------------------------------
+
+_________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+*Note*
+
+When you disable quotas on {{ book.productTitle }} 3.1.1 and earlier,
+all previously configured limits are removed from the volume by a
+cleanup process. If you re-enable quotas while the cleanup process is
+still in progress, the extended attributes that enable quotas may be
+removed by the cleanup process. This has negative effects on quota
+accounting.
+_________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________

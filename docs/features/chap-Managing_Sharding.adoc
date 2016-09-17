@@ -1,0 +1,117 @@
+[[chap-Managing_Sharding]]
+= Managing Sharding
+
+Sharding breaks files into smaller pieces so that they can be
+distributed across the bricks that comprise a volume. This is enabled on
+a per-volume basis.
+
+When sharding is enabled, files written to a volume are divided into
+pieces. The size of the pieces depends on the value of the volume's
+features.shard-block-size parameter. The first piece is written to a
+brick and given a GFID like a normal file. Subsequent pieces are
+distributed evenly between bricks in the volume (sharded bricks are
+distributed by default), but they are written to that brick's `.shard`
+directory, and are named with the GFID and a number indicating the order
+of the pieces. For example, if a file is split into four pieces, the
+first piece is named GFID and stored normally. The other three pieces
+are named GFID.1, GFID.2, and GFID.3 respectively. They are placed in
+the `.shard` directory and distributed evenly between the various bricks
+in the volume.
+
+Because sharding distributes files across the bricks in a volume, it
+lets you store files with a larger aggregate size than any individual
+brick in the volume. Because the file pieces are smaller, heal
+operations are faster, and geo-replicated deployments can sync the small
+pieces of a file that have changed, rather than syncing the entire
+aggregate file.
+
+Sharding also lets you increase volume capacity by adding bricks to a
+volume in an ad-hoc fashion.
+
+[[sect-Shard-Support]]
+= Supported use cases
+
+As of {{ book.productTitle }} 3.1 Update 3, sharding has one supported
+use case: in the context of providing {{ book.productTitle }} as a
+storage domain for Red Hat Enterprise Virtualization, to provide storage
+for live virtual machine images. Note that sharding is also a
+requirement for this use case, as it provides significant performance
+improvements over previous implementations.
+
+________________________________________
+*Important*
+
+Quotas are not compatible with sharding.
+________________________________________
+
+______________________________________________________________________________________________________
+*Important*
+
+Sharding is supported in new deployments only, as there is currently no
+upgrade path for this feature.
+______________________________________________________________________________________________________
+
+Set up a three-way replicated volume, as described in the
+{{ book.productTitle }} Administration Guide:
+https://access.redhat.com/documentation/en-US/Red_Hat_Storage/3.1/html/Administration_Guide/sect-Creating_Replicated_Volumes.html#Creating_Three-way_Replicated_Volumes[].
+
+Before you start your volume, enable sharding on the volume.
+
+------------------------------------------------------
+# gluster volume set test-volume features.shard enable
+------------------------------------------------------
+
+Start the volume and ensure it is working as expected.
+
+----------------------------------
+# gluster volume test-volume start
+# gluster volume info test-volume
+----------------------------------
+
+[[sect-Shard-Config]]
+= Configuration Options
+
+Sharding is enabled and configured at the volume level. The
+configuration options are as follows.
+
+`features.shard`::
+  Enables or disables sharding on a specified volume. Valid values are
+  `enable` and `disable`. The default value is `disable`.
+  +
+--------------------------------------------------
+# gluster volume set volname features.shard enable
+--------------------------------------------------
+  +
+  Note that this only affects files created after this command is run;
+  files created before this command is run retain their old behaviour.
+`features.shard-block-size`::
+  Specifies the maximum size of the file pieces when sharding is
+  enabled. The supported value for this parameter is 512MB.
+  +
+-----------------------------------------------------------
+# gluster volume set volname features.shard-block-size 32MB
+-----------------------------------------------------------
+  +
+  Note that this only affects files created after this command is run;
+  files created before this command is run retain their old behaviour.
+
+[[sect-Shard-Find]]
+= Finding the pieces of a sharded file
+
+When you enable sharding, you might want to check that it is working
+correctly, or see how a particular file has been sharded across your
+volume.
+
+To find the pieces of a file, you need to know that file's GFID. To
+obtain a file's GFID, run:
+
+-------------------------------------
+# getfattr -d -m. -e hex path_to_file
+-------------------------------------
+
+Once you have the GFID, you can run the following command on your bricks
+to see how this file has been distributed:
+
+-------------------------------------
+# ls /bricks/*/.shard -lh | grep GFID
+-------------------------------------

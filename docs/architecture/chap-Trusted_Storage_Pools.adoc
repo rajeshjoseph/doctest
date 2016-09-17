@@ -1,0 +1,171 @@
+[[chap-Trusted_Storage_Pools]]
+= Trusted Storage Pools
+
+A storage pool is a network of storage servers.
+
+When the first server starts, the storage pool consists of that server
+alone. Adding additional storage servers to the storage pool is achieved
+using the probe command from a running, trusted storage server.
+
+__________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+*Important*
+
+Before adding servers to the trusted storage pool, you must ensure that
+the ports specified in <<chap-Getting_Started-Port_Information>> are open.
+
+On Red Hat Enterprise Linux 7, enable the glusterFS firewall service in
+the active zones for runtime and permanent mode using the following
+commands:
+
+To get a list of active zones, run the following command:
+
+---------------------------------
+# firewall-cmd --get-active-zones
+---------------------------------
+
+To allow the firewall service in the active zones, run the following
+commands:
+
+-------------------------------------------------------------------
+# firewall-cmd --zone=zone_name --add-service=glusterfs 
+# firewall-cmd --zone=zone_name --add-service=glusterfs --permanent
+-------------------------------------------------------------------
+
+For more information about using firewalls, see section Using Firewalls
+in the Red Hat Enterprise Linux 7 Security Guide:
+https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/7/html/Security_Guide/sec-Using_Firewalls.html[].
+__________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+
+__________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+*Note*
+
+When any two gluster commands are executed concurrently on the same
+volume, the following error is displayed:
+
+_Another transaction is in progress._
+
+This behavior in the {{ book.productTitle }} prevents two or more
+commands from simultaneously modifying a volume configuration,
+potentially resulting in an inconsistent state.
+
+{% if book.productTitle == "GlusterFS" %}
+Such an implementation is common in environments with monitoring frameworks
+such as the {{ book.productTitle }} Console, Red Hat Enterprise Virtualization Manager, and
+Nagios. For example, in a four node {{ book.productTitle }} Trusted
+Storage Pool, this message is observed when
+`gluster volume status VOLNAME` command is executed from two of the
+nodes simultaneously.
+
+{% endif %}
+
+__________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+
+[[Adding_Servers_to_the_Trusted_Storage_Pool]]
+= Adding Servers to the Trusted Storage Pool
+
+The `gluster peer probe [server]` command is used to add servers to the
+trusted server pool.
+
+_______________________________________________________________________________________________________
+*Note*
+
+Probing a node from lower version to a higher version of
+{{ book.productTitle }} node is not supported.
+_______________________________________________________________________________________________________
+
+Create a trusted storage pool consisting of three storage servers, which
+comprise a volume.
+
+* The `glusterd` service must be running on all storage servers
+requiring addition to the trusted storage pool. See <<Starting_and_Stopping_the_glusterd_service>>
+for service start and stop commands.
+* `Server1`, the trusted storage server, is started.
+* The host names of the target servers must be resolvable by DNS.
+
+Run `gluster peer probe [server]` from Server 1 to add additional
+servers to the trusted storage pool.
+
+____________________________________________________________________________________________________________________________________________________________________________________________________________________________
+*Note*
+
+* Self-probing `Server1` will result in an error because it is part of
+the trusted storage pool by default.
+* All the servers in the Trusted Storage Pool must have RDMA devices if
+either `RDMA` or `RDMA,TCP` volumes are created in the storage pool. The
+peer probe must be performed using IP/hostname assigned to the RDMA
+device.
+____________________________________________________________________________________________________________________________________________________________________________________________________________________________
+
+----------------------------
+# gluster peer probe server2
+Probe successful
+
+# gluster peer probe server3
+Probe successful
+
+# gluster peer probe server4
+Probe successful
+----------------------------
+
+Verify the peer status from all servers using the following command:
+
+------------------------------------------
+# gluster peer status
+Number of Peers: 3
+
+Hostname: server2
+Uuid: 5e987bda-16dd-43c2-835b-08b7d55e94e5
+State: Peer in Cluster (Connected)
+
+Hostname: server3
+Uuid: 1e0ca3aa-9ef7-4f66-8f15-cbc348f29ff7
+State: Peer in Cluster (Connected)
+
+Hostname: server4
+Uuid: 3e0caba-9df7-4f66-8e5d-cbc348f29ff7
+State: Peer in Cluster (Connected)
+------------------------------------------
+
+________________________________________________________________________________________________________________________________________________________________
+*Important*
+
+If the existing trusted storage pool has a geo-replication session, then
+after adding the new server to the trusted storage pool, perform the
+steps listed at <<chap-Managing_Geo-replication-Starting_Geo-replication_on_a_Newly_Added_Brick>>.
+________________________________________________________________________________________________________________________________________________________________
+
+[[Removing_Servers_from_the_Trusted_Storage_Pool]]
+= Removing Servers from the Trusted Storage Pool
+
+Run `gluster peer detach server` to remove a server from the storage
+pool.
+
+Remove one server from the Trusted Storage Pool, and check the peer
+status of the storage pool.
+
+* The `glusterd` service must be running on the server targeted for
+removal from the storage pool. See <<Starting_and_Stopping_the_glusterd_service>>
+for service start and stop commands.
+* The host names of the target servers must be resolvable by DNS.
+
+Run `gluster peer detach [server]` to remove the server from the trusted
+storage pool.
+
+-----------------------------
+# gluster peer detach server4
+Detach successful
+-----------------------------
+
+Verify the peer status from all servers using the following command:
+
+------------------------------------------
+# gluster peer status
+Number of Peers: 2
+
+Hostname: server2
+Uuid: 5e987bda-16dd-43c2-835b-08b7d55e94e5
+State: Peer in Cluster (Connected)
+
+Hostname: server3
+Uuid: 1e0ca3aa-9ef7-4f66-8f15-cbc348f29ff7
+------------------------------------------

@@ -1,0 +1,7 @@
+= Summary
+
+* link:README.adoc[Architecture]
+** link:chap-Gluster_Architecture_and_Concepts.adoc[Architecture and Concepts]
+** link:chap-Trusted_Storage_Pools.adoc[Trusted Storage Pools]
+** link:chap-Gluster_Volumes.adoc[Gluster Volumes Types]
+** link:chap-Accessing_Data_-_Setting_Up_Clients.adoc[Accessing Data]

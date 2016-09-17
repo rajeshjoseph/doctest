@@ -1,0 +1,432 @@
+[[chap-Managing_Red_Hat_Storage_Logs]]
+= Managing {{ book.productTitle }} Logs
+
+The log management framework generates log messages for each of the
+administrative functionalities and the components to increase the
+user-serviceability aspect of {{ book.productTitle }} Server. Logs are
+generated to track the event changes in the system. The feature makes
+the retrieval, rollover, and archival of log files easier and helps in
+troubleshooting errors that are user-resolvable with the help of the
+{{ book.productTitle }} Error Message Guide. The {{ book.productTitle }}
+Component logs are rotated on a weekly basis. Administrators can rotate
+a log file in a volume, as needed. When a log file is rotated, the
+contents of the current log file are moved to
+`log-file-name.epoch-time-stamp`.The components for which the log
+messages are generated with message-ids are glusterFS Management
+Service, Distributed Hash Table (DHT), and Automatic File Replication
+(AFR).
+
+[[Rotating_Logs]]
+= Log Rotation
+
+Log files are rotated on a weekly basis and the log files are zipped in
+the gzip format on a fortnightly basis. When the content of the log file
+is rotated, the current log file is moved to log-file-
+name.epoch-time-stamp. The archival of the log files is defined in the
+configuration file. As a policy, log file content worth 52 weeks is
+retained in the {{ book.productTitle }} Server.
+
+[[Red_Hat_Storage_Component_Logs_and_Location]]
+= {{ book.productTitle }} Component Logs and Location
+
+The table lists the component, services, and functionality based logs in
+the {{ book.productTitle }} Server. As per the File System Hierarchy
+Standards (FHS) all the log files are placed in the `/var/log`
+directory.
+
+[cols=",,",options="header",]
+|=======================================================================
+|Component/Service Name |Location of the Log File |Remarks
+|glusterd |`/var/log/glusterfs/etc-glusterfs-glusterd.vol.log` |One
+glusterd log file per server. This log file also contains the snapshot
+and user logs.
+
+|gluster commands |`/var/log/glusterfs/cmd_history.log` |Gluster
+commands executed on a node in a {{ book.productTitle }} Trusted Storage
+Pool is logged in this file.
+
+|bricks
+|`/var/log/glusterfs/bricks/<path extraction of brick path>.log ` |One
+log file per brick on the server
+
+|rebalance |`/var/log/glusterfs/ VOLNAME- rebalance.log` |One log file
+per volume on the server
+
+|self heal deamon |`/var/log/glusterfs/ glustershd.log` |One log file
+per server
+
+|quota a|
+* `/var/log/glusterfs/ quotad.log` Log of the quota daemons running on
+each node.
+* `/var/log/glusterfs/ quota-crawl.log` Whenever quota is enabled, a
+file system crawl is performed and the corresponding log is stored in
+this file
+* `/var/log/glusterfs/ quota-mount- VOLNAME.log` An auxiliary FUSE
+client is mounted in <gluster-run-dir>/VOLNAME of the glusterFS and the
+corresponding client logs found in this file.
+
+ |One log file per server (and per volume from quota-mount.
+
+|Gluster NFS |`/var/log/glusterfs/ nfs.log` |One log file per server
+
+|SAMBA Gluster |`/var/log/samba/glusterfs-VOLNAME-<ClientIP>.log` |If
+the client mounts this on a glusterFS server node, the actual log file
+or the mount point may not be found. In such a case, the mount outputs
+of all the glusterFS type mount operations need to be considered.
+
+|NFS - Ganesha |`/var/log/ganesha.log`, `/var/log/ganesha-gfapi.log`
+|One log file per server
+
+|FUSE Mount |`/var/log/ glusterfs/<mountpoint path extraction>.log` |
+
+|Geo-replication
+|`/var/log/glusterfs/geo-replication/<master> /var/log/glusterfs/geo-replication-slaves`
+|
+
+|`gluster volume heal VOLNAME info` command
+|`/var/log/glusterfs/glfsheal-VOLNAME.log` |One log file per server on
+which the command is executed.
+
+|gluster-swift |`/var/log/messages` |
+
+|SwiftKrbAuth |`/var/log/httpd/error_log`
+
+|Command Line Interface logs |`/var/log/glusterfs/cli.log` |This file
+captures log entries for every command that is executed on the Command
+Line Interface(CLI).
+|=======================================================================
+
+[[Configuring_the_Log_Format]]
+= Configuring the Log Format
+
+You can configure the {{ book.productTitle }} Server to generate log
+messages either with message IDs or without them.
+
+To know more about these options, see topic Configuring Volume Options
+in the {{ book.productTitle }} Administration Guide.
+
+*To configure the log-format for bricks of a volume:*
+
+---------------------------------------------------------------
+gluster volume set VOLNAME diagnostics.brick-log-format <value>
+---------------------------------------------------------------
+
+---------------------------------------------------------------------
+# gluster volume set testvol diagnostics.brick-log-format with-msg-id
+  
+---------------------------------------------------------------------
+
+-------------------------------------------------------------------
+# gluster volume set testvol diagnostics.brick-log-format no-msg-id
+  
+-------------------------------------------------------------------
+
+*To configure the log-format for clients of a volume:*
+
+----------------------------------------------------------------
+gluster volume set VOLNAME diagnostics.client-log-format <value>
+----------------------------------------------------------------
+
+----------------------------------------------------------------------
+# gluster volume set testvol diagnostics.client-log-format with-msg-id
+  
+----------------------------------------------------------------------
+
+--------------------------------------------------------------------
+# gluster volume set testvol diagnostics.client-log-format no-msg-id
+  
+--------------------------------------------------------------------
+
+*To configure the log format for `glusterd`:*
+
+-------------------------------
+# glusterd --log-format=<value>
+-------------------------------
+
+-----------------------------------
+# glusterd --log-format=with-msg-id
+  
+-----------------------------------
+
+---------------------------------
+# glusterd --log-format=no-msg-id
+  
+---------------------------------
+
+To a list of error messages, see the {{ book.productTitle }} Error
+Message Guide.
+
+* See also <<chap-Managing_Gluster_Volumes.adoc#Configuring_Volume_Options,
+Configuring Volume Options>>
+
+[[Configuring_the_Log_Level]]
+= Configuring the Log Level
+
+Every log message has a log level associated with it. The levels, in
+descending order, are CRITICAL, ERROR, WARNING, INFO, DEBUG, and TRACE.
+{{ book.productTitle }} can be configured to generate log messages only
+for certain log levels. Only those messages that have log levels above
+or equal to the configured log level are logged.
+
+For example, if the log level is set to `INFO`, only `CRITICAL`,
+`ERROR`, `WARNING`, and `INFO` messages are logged.
+
+The components can be configured to log at one of the following levels:
+
+* CRITICAL
+* ERROR
+* WARNING
+* INFO
+* DEBUG
+* TRACE
+
+______________________________________________________________________________________________________________________________________________
+*Important*
+
+Setting the log level to TRACE or DEBUG generates a very large number of
+log messages and can lead to disks running out of space very quickly.
+______________________________________________________________________________________________________________________________________________
+
+*To configure the log level on bricks*
+
+----------------------------------------------------------------
+# gluster volume set VOLNAME diagnostics.brick-log-level <value>
+----------------------------------------------------------------
+
+----------------------------------------------------------------
+# gluster volume set testvol diagnostics.brick-log-level WARNING
+  
+----------------------------------------------------------------
+
+*To configure the syslog level on bricks*
+
+--------------------------------------------------------------------
+# gluster volume set VOLNAME diagnostics.brick-sys-log-level <value>
+--------------------------------------------------------------------
+
+--------------------------------------------------------------------
+# gluster volume set testvol diagnostics.brick-sys-log-level WARNING
+  
+--------------------------------------------------------------------
+
+*To configure the log level on clients*
+
+-----------------------------------------------------------------
+# gluster volume set VOLNAME diagnostics.client-log-level <value>
+-----------------------------------------------------------------
+
+---------------------------------------------------------------
+# gluster volume set testvol diagnostics.client-log-level ERROR
+  
+---------------------------------------------------------------
+
+*To configure the syslog level on clients*
+
+---------------------------------------------------------------------
+# gluster volume set VOLNAME diagnostics.client-sys-log-level <value>
+---------------------------------------------------------------------
+
+-------------------------------------------------------------------
+# gluster volume set testvol diagnostics.client-sys-log-level ERROR
+-------------------------------------------------------------------
+
+*To configure the log level for `glusterd` persistently*
+
+Edit the `/etc/sysconfig/glusterd` file, and set the value of the
+`LOG_LEVEL` parameter to the log level that you want glusterd to use.
+
+---------------------------------------------------------
+## Set custom log file and log level (below are defaults)
+#LOG_FILE='/var/log/glusterfs/glusterd.log'
+LOG_LEVEL='VALUE'
+---------------------------------------------------------
+
+This change does not take effect until glusterd is started or restarted
+with the `service` or `systemctl` command.
+
+In the `/etc/sysconfig/glusterd` file, locate the `LOG_LEVEL` parameter
+and set its value to `WARNING`.
+
+---------------------------------------------------------
+## Set custom log file and log level (below are defaults)
+#LOG_FILE='/var/log/glusterfs/glusterd.log'
+LOG_LEVEL='WARNING'
+---------------------------------------------------------
+
+Then start or restart the glusterd service. On Red Hat Enterprise Linux
+7, run:
+
+------------------------------------
+# systemctl restart glusterd.service
+------------------------------------
+
+On Red Hat Enterprise Linux 6, run:
+
+--------------------------
+# service glusterd restart
+--------------------------
+
+*To run a gluster command once with a specified log level*
+
+-----------------------------------------
+gluster --log-level=ERROR VOLNAME COMMAND
+-----------------------------------------
+
+-----------------------------------------
+# gluster --log-level=ERROR volume status
+  
+-----------------------------------------
+
+* See also <<chap-Managing_Gluster_Volumes.adoc#Configuring_Volume_Options,
+Configuring Volume Options>>
+
+[[Suppressing_Repetitive_Log_Messages]]
+= Suppressing Repetitive Log Messages
+
+Repetitive log messages in the {{ book.productTitle }} Server can be
+configured by setting a `log-flush-timeout` period and by defining a
+`log-buf-size` buffer size options with the `gluster volume set`
+command.
+
+*Suppressing Repetitive Log Messages with a Timeout Period.*
+
+*To set the timeout period on the bricks:*
+
+------------------------------------------------------------------------
+# gluster volume set VOLNAME diagnostics.brick-log-flush-timeout <value>
+------------------------------------------------------------------------
+
+--------------------------------------------------------------------
+# gluster volume set testvol diagnostics.brick-log-flush-timeout 200
+volume set: success
+--------------------------------------------------------------------
+
+*To set the timeout period on the clients:*
+
+-------------------------------------------------------------------------
+# gluster volume set VOLNAME diagnostics.client-log-flush-timeout <value>
+-------------------------------------------------------------------------
+
+---------------------------------------------------------------------
+# gluster volume set testvol diagnostics.client-log-flush-timeout 180
+volume set: success
+---------------------------------------------------------------------
+
+*To set the timeout period on `glusterd`:*
+
+--------------------------------------
+# glusterd --log-flush-timeout=<value>
+--------------------------------------
+
+---------------------------------
+# glusterd --log-flush-timeout=60
+---------------------------------
+
+*Suppressing Repetitive Log Messages by defining a Buffer Size.*
+
+The maximum number of unique log messages that can be suppressed until
+the timeout or buffer overflow, whichever occurs first on the bricks.
+
+*To set the buffer size on the bricks:*
+
+-------------------------------------------------------------------
+# gluster volume set VOLNAME diagnostics.brick-log-buf-size <value>
+-------------------------------------------------------------------
+
+--------------------------------------------------------------
+# gluster volume set testvol diagnostics.brick-log-buf-size 10
+volume set: success
+--------------------------------------------------------------
+
+*To set the buffer size on the clients:*
+
+--------------------------------------------------------------------
+# gluster volume set VOLNAME diagnostics.client-log-buf-size <value>
+--------------------------------------------------------------------
+
+---------------------------------------------------------------
+# gluster volume set testvol diagnostics.client-log-buf-size 15
+volume set: success
+---------------------------------------------------------------
+
+*To set the log buffer size on `glusterd`:*
+
+---------------------------------
+# glusterd --log-buf-size=<value>
+---------------------------------
+
+----------------------------
+# glusterd --log-buf-size=10
+----------------------------
+
+________________________________________________________________________________
+*Note*
+
+To disable suppression of repetitive log messages, set the log-buf-size
+to zero.
+________________________________________________________________________________
+
+* See also <<chap-Managing_Gluster_Volumes.adoc#Configuring_Volume_Options,
+Configuring Volume Options>>
+
+[[sect-Geo-replication_Logs]]
+= Geo-replication Logs
+
+The following log files are used for a geo-replication session:
+
+* `Master-log-file` - log file for the process that monitors the master
+volume.
+* `Slave-log-file` - log file for process that initiates changes on a
+slave.
+* `Master-gluster-log-file` - log file for the maintenance mount point
+that the geo-replication module uses to monitor the master volume.
+* `Slave-gluster-log-file` - If the slave is a {{ book.productTitle }}
+Volume, this log file is the slave's counterpart of
+`Master-gluster-log-file`.
+
+[[Viewing_the_Geo-replication_Master_Log_Files]]
+== Viewing the Geo-replication Master Log Files
+
+To view the Master-log-file for geo-replication, use the following
+command:
+
+---------------------------------------------------------------------------------
+# gluster volume geo-replication MASTER_VOL SLAVE_HOST::SLAVE_VOL config log-file
+---------------------------------------------------------------------------------
+
+For example:
+
+-------------------------------------------------------------------------------
+# gluster volume geo-replication Volume1 example.com::slave-vol config log-file
+-------------------------------------------------------------------------------
+
+[[Viewing_the_Geo-replication_Slave_Log_Files]]
+== Viewing the Geo-replication Slave Log Files
+
+To view the log file for geo-replication on a slave, use the following
+procedure. `glusterd` must be running on slave machine.
+
+1.  On the master, run the following command to display the
+session-owner details:
++
+--------------------------------------------------------------------------------------
+# gluster volume geo-replication MASTER_VOL SLAVE_HOST::SLAVE_VOL config session-owner
+--------------------------------------------------------------------------------------
++
+For example:
++
+-------------------------------------------------------------------------------------------------------------------------
+# gluster volume geo-replication Volume1 example.com::slave-vol config session-owner 5f6e5200-756f-11e0-a1f0-0800200c9a66
+-------------------------------------------------------------------------------------------------------------------------
+2.  On the slave, run the following command with the session-owner value
+from the previous step:
++
+------------------------------------------------------------------------------------------------------------
+# gluster volume geo-replication SLAVE_VOL config log-file /var/log/gluster/SESSION_OWNER:remote-mirror.log 
+------------------------------------------------------------------------------------------------------------
++
+For example:
++
+----------------------------------------------------------------------------------------------------------------------------------
+# gluster volume geo-replication slave-vol config log-file /var/log/gluster/5f6e5200-756f-11e0-a1f0-0800200c9a66:remote-mirror.log
+----------------------------------------------------------------------------------------------------------------------------------

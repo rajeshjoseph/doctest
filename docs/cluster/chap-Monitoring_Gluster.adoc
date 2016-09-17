@@ -1,0 +1,1857 @@
+[[chap-Monitoring_Gluster]]
+= Monitoring {{ book.productTitle }}
+
+Monitoring of {{ book.productTitle }} servers is built on Nagios
+platform to monitor {{ book.productTitle }} trusted storage pool, hosts,
+volumes, and services. You can monitor utilization, status, alerts and
+notifications for status and utilization changes.
+
+For more information on Nagios software, refer Nagios Documentation.
+
+Using Nagios, the physical resources, logical resources, and processes
+(CPU, Memory, Disk, Network, Swap, cluster, volume, brick, Host,
+Volumes, Brick, nfs, shd, quotad, ctdb, smb, glusterd, quota,
+geo-replication, self-heal,and server quorum) can be monitored. You can
+view the utilization and status through Nagios Server GUI.
+
+{{ book.productTitle }} trusted storage pool monitoring can be setup in
+one of the three deployment scenarios listed below:
+
+* Nagios deployed on {{ book.productTitle }} node.
+* Nagios deployed on {{ book.productTitle }} Console node.
+* Nagios deployed on Red Hat Enterprise Linux node.
+
+This chapter describes the procedures for deploying Nagios on
+{{ book.productTitle }} node and Red Hat Enterprise Linux node. For information
+on deploying Nagios on {{ book.productTitle }} Console node, see
+{{ book.productTitle }} Console Administration Guide.
+
+The following diagram illustrates deployment of Nagios on {{ book.productTitle }}
+node.
+
+image:images/5990.png[Nagios deployed on {{ book.productTitle }} node]
+
+The following diagram illustrates deployment of Nagios on Red Hat
+Enterprise Linux node.
+
+image:images/5991.png[ ]
+
+[[Prerequisites]]
+= Prerequisites
+
+{% if book.productTitle == "GlusterFS" %}
+TODO: Fix this
+{% else %}
+Ensure that you register using Subscription Manager or Red Hat Network
+Classic (RHN) and enable the Nagios repositories before installing the
+Nagios Server.
+
+______________________________________________________________________________________
+*Note*
+
+Register using Red Hat Network (RHN) Classic only if you are a Red Hat
+Satellite user.
+______________________________________________________________________________________
+
+* Registering using Subscription Manager and enabling Nagios
+repositories
+** To install Nagios on {{ book.productTitle }} node, subscribe to
+`rhs-nagios-3-for-rhel-6-server-rpms` repository.
+** To install Nagios on Red Hat Enterprise Linux node, subscribe to
+`rhel-6-server-rpms`, `rhs-nagios-3-for-rhel-6-server-rpms`
+repositories.
+** To install Nagios on {{ book.productTitle }} node based on RHEL7,
+subscribe to `rh-gluster-3-nagios-for-rhel-7-server-rpms` repository.
+** To install Nagios on Red Hat Enterprise Linux node, subscribe to
+`rhel-7-server-rpms`, `rh-gluster-3-nagios-for-rhel-7-server-rpms`
+repositories.
+* Registering using Red Hat Network (RHN) Classic and subscribing to
+Nagios channels
+** To install Nagios on {{ book.productTitle }} node, subscribe to
+`rhel-x86_64-server-6-rhs-nagios-3` channel.
+** To install Nagios on {{ book.productTitle }} node, subscribe to
+`rhel-x86_64-server-7-rh-gluster-3-nagios` channel.
+** To install Nagios on Red Hat Enterprise Linux node, subscribe to
+`rhel-x86_64-server-6`, `rhel-x86_64-server-6-rhs-nagios-3` channels.
+** To install Nagios on Red Hat Enterprise Linux node, subscribe to
+`rhel-x86_64-server-7`, `rhel-x86_64-server-7-rh-gluster-3-nagios`
+channels.
+
+________________________________________________________________________________________________________________________________________________________________
+*Note*
+
+Once nagios is installed on {{ book.productTitle }} or RHEL node, verify
+that the following booleans are ON by running the
+`getsebool -a | grep nagios` command:
+
+* `nagios_run_sudo --> on`
+* `nagios_run_pnp4nagios --> on`
+________________________________________________________________________________________________________________________________________________________________
+
+{% endif %}
+
+[[sect-Installing_Nagios]]
+= Installing Nagios
+
+The Nagios monitoring system is used to provide monitoring and alerts
+for the {{ book.productTitle }} network and infrastructure. Installing
+Nagios installs the following components.
+
+nagios::
+  Core program, web interface and configuration files for Nagios server.
+python-cpopen::
+  Python package for creating sub-process in simple and safe manner.
+python-argparse::
+  Command line parser for python.
+libmcrypt::
+  Encryptions algorithm library.
+rrdtool::
+  Round Robin Database Tool to store and display time-series data.
+pynag::
+  Python modules and utilities for Nagios plugins and configuration.
+check-mk::
+  General purpose Nagios-plugin for retrieving data.
+mod_python::
+  An embedded Python interpreter for the Apache HTTP Server.
+nrpe::
+  Monitoring agent for Nagios.
+nsca::
+  Nagios service check acceptor.
+nagios-plugins::
+  Common monitoring plug-ins for nagios.
+gluster-nagios-common::
+  Common libraries, tools, configurations for Gluster node and Nagios
+  server add-ons.
+nagios-server-addons::
+  Gluster node management add-ons for Nagios.
+
+[[Installing_Nagios_Server]]
+== Installing Nagios Server
+
+Use the following command to install Nagios server:
+
+----------------------------------
+# yum install nagios-server-addons
+----------------------------------
+
+You must install Nagios on the node which would be used as the Nagios
+server.
+
+[[Configuring_Red_Hat_Storage_Nodes_for_Nagios]]
+== Configuring {{ book.productTitle }} Nodes for Nagios
+
+Configure all the {{ book.productTitle }} nodes, including the node on
+which the Nagios server is installed.
+
+_______________________________________________________________________________________________________________________________________________
+*Note*
+
+If SELinux is configured, the sebooleans must be enabled on all
+{{ book.productTitle }} nodes and the node on which Nagios server is installed.
+
+Enable the following sebooleans on Red Hat Enterprise Linux node if
+Nagios server is installed.
+
+----------------------------------------------------
+# setsebool -P logging_syslogd_run_nagios_plugins on
+# setsebool -P nagios_run_sudo on
+----------------------------------------------------
+_______________________________________________________________________________________________________________________________________________
+
+To configure the nodes, follow the steps given below:
+
+1.  In `/etc/nagios/nrpe.cfg` file, add the central Nagios server IP
+address as shown below:
++
+-----------------------------------------------------------
+allowed_hosts=127.0.0.1, NagiosServer-HostName-or-IPaddress
+-----------------------------------------------------------
+2.  Restart the `NRPE` service using the following command:
++
+----------------------
+# service nrpe restart
+----------------------
++
+________________________________________________________________________________________________________________________________________
+*Note*
+
+* The host name of the node is used while configuring Nagios server
+using auto-discovery. To view the host name, run `hostname` command.
+* Ensure that the host names are unique.
+________________________________________________________________________________________________________________________________________
+3.  Start the `glusterpmd` service using the following command:
++
+--------------------------
+# service glusterpmd start
+--------------------------
++
+To start `glusterpmd` service automatically when the system reboots, run
+`chkconfig --add glusterpmd` command.
++
+You can start the `glusterpmd` service using `service glusterpmd start`
+command and stop the service using `service glusterpmd stop` command.
++
+The `glusterpmd` service is a {{ book.productTitle }} process monitoring
+service running in every {{ book.productTitle }} node to monitor
+glusterd, self heal, smb, quotad, ctdbd and brick services and to alert
+the user when the services go down. The `glusterpmd` service sends its
+managing services detailed status to the Nagios server whenever there is
+a state change on any of its managing services.
++
+This service uses `/etc/nagios/nagios_server.conf` file to get the
+Nagios server name and the local host name given in the Nagios server.
+The `nagios_server.conf` is configured by auto-discovery.
+
+[[sect-Monitoring_Red_Hat_Storage_Trusted_Storage_Pool]]
+= Monitoring {{ book.productTitle }} Trusted Storage Pool
+
+This section describes how you can monitor Gluster storage trusted pool.
+
+[[Configuring_Nagios_using_Auto-Discovery]]
+== Configuring Nagios
+
+Auto-Discovery is a python script which automatically discovers all the
+nodes and volumes in the cluster. It also creates Nagios configuration
+to monitor them. By default, it runs once in 24 hours to synchronize the
+Nagios configuration from {{ book.productTitle }} Trusted Storage Pool
+configuration.
+
+For more information on Nagios Configuration files, see
+<<../appendices/chap-Nagios_Configuration_Files.adoc#chap-Nagios_Configuration_Files, Nagios Configuration Files>>
+
+_______________________________________________________________________________________________________________________________________________________
+*Note*
+
+Before configuring Nagios using `configure-gluster-nagios` command,
+ensure that all the {{ book.productTitle }} nodes are configured as
+mentioned in <<Configuring_Red_Hat_Storage_Nodes_for_Nagios,
+Configuring {{ book.productTitle }} Nodes for Nagios>>.
+_______________________________________________________________________________________________________________________________________________________
+
+1.  Execute the `configure-gluster-nagios` command manually on the
+Nagios server using the following command:
++
+---------------------------------------------------------------------
+ # configure-gluster-nagios -c cluster-name -H HostName-or-IP-address
+---------------------------------------------------------------------
++
+For `-c`, provide a cluster name (a logical name for the cluster) and
+for `-H`, provide the host name or ip address of a node in the
+{{ book.productTitle }} trusted storage pool.
+2.  Perform the steps given below when `configure-gluster-nagios`
+command runs:
+1.  Confirm the configuration when prompted.
+2.  Enter the current Nagios server host name or IP address to be
+configured all the nodes.
+3.  Confirm restarting Nagios server when prompted.
++
+---------------------------------------------------------------------------------------------
+# configure-gluster-nagios -c demo-cluster -H HostName-or-IP-address
+Cluster configurations changed
+Changes :
+Hostgroup demo-cluster - ADD
+Host demo-cluster - ADD
+  Service - Volume Utilization - vol-1 -ADD
+  Service - Volume Split-Brain - vol-1 -ADD
+  Service - Volume Status - vol-1 -ADD
+  Service - Volume Utilization - vol-2 -ADD
+  Service - Volume Status - vol-2 -ADD
+  Service - Cluster Utilization -ADD
+  Service - Cluster - Quorum -ADD
+  Service - Cluster Auto Config -ADD
+Host Host_Name - ADD
+  Service - Brick Utilization - /bricks/vol-1-5 -ADD
+  Service - Brick - /bricks/vol-1-5 -ADD
+  Service - Brick Utilization - /bricks/vol-1-6 -ADD
+  Service - Brick - /bricks/vol-1-6 -ADD
+  Service - Brick Utilization - /bricks/vol-2-3 -ADD
+  Service - Brick - /bricks/vol-2-3 -ADD
+Are you sure, you want to commit the changes? (Yes, No) [Yes]:
+Enter Nagios server address [Nagios_Server_Address]:
+Cluster configurations synced successfully from host ip-address
+Do you want to restart Nagios to start monitoring newly discovered entities? (Yes, No) [Yes]:
+Nagios re-started successfully
+---------------------------------------------------------------------------------------------
++
+All the hosts, volumes and bricks are added and displayed.
+3.  Login to the Nagios server GUI using the following URL.
++
+-------------------------------------------------
+https://NagiosServer-HostName-or-IPaddress/nagios
+-------------------------------------------------
++
+_________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+*Note*
+
+* The default Nagios user name and password is __nagiosadmin /
+nagiosadmin__.
+* You can manually update/discover the services by executing the
+`configure-gluster-nagios` command or by running Cluster Auto Config
+service through Nagios Server GUI.
+* If the node with which auto-discovery was performed is down or removed
+from the cluster, run the `configure-gluster-nagios` command with a
+different node address to continue discovering or monitoring the nodes
+and services.
+* If new nodes or services are added, removed, or if snapshot restore
+was performed on {{ book.productTitle }} node, run
+`configure-gluster-nagios` command.
+_________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+
+[[Verifying_the_Configuration1]]
+== Verifying the Configuration
+
+1.  Verify the updated configurations using the following command:
++
+----------------------------------
+# nagios -v /etc/nagios/nagios.cfg
+----------------------------------
++
+If error occurs, verify the parameters set in /etc/nagios/nagios.cfg and
+update the configuration files.
+2.  Restart Nagios server using the following command:
++
+------------------------
+# service nagios restart
+------------------------
+3.  Log into the Nagios server GUI using the following URL with the
+Nagios Administrator user name and password.
++
+-------------------------------------------------
+https://NagiosServer-HostName-or-IPaddress/nagios
+-------------------------------------------------
++
+_____________________________________________________________________________________________________________________
+*Note*
+
+To change the default password, see Changing Nagios Password section in
+{{ book.productTitle }} Administration Guide.
+_____________________________________________________________________________________________________________________
+4.  Click Services in the left pane of the Nagios server GUI and verify
+the list of hosts and services displayed.
+
+[[Using_Nagios_GUI]]
+== Using Nagios Server GUI
+
+You can monitor {{ book.productTitle }} trusted storage pool through
+Nagios Server GUI.
+
+To view the details, log into the Nagios Server GUI by using the
+following URL.
+
+-------------------------------------------------
+https://NagiosServer-HostName-or-IPaddress/nagios
+-------------------------------------------------
+
+image:images/2477.png[ Description ]
+
+*Cluster Overview.*
+
+To view the overview of the hosts and services being monitored, click
+Tactical Overview in the left pane. The overview of Network Outages,
+Hosts, Services, and Monitoring Features are displayed. Description
+
+*Host Status.*
+
+To view the status summary of all the hosts, click Summary under Host
+Groups in the left pane. Description To view the list of all hosts and
+their status, click Hosts in the left pane.
+
+______________________________________________________________________________________
+*Note*
+
+Cluster also will be shown as Host in Nagios and it will have all the
+volume services.
+______________________________________________________________________________________
+
+*Service Status.*
+
+To view the list of all hosts and their service status click Services in
+the left pane.
+
+___________________________________________________________________________________________________________________________________________________
+*Note*
+
+In the left pane of Nagios Server GUI, click Availability and Trends
+under the Reports field to view the Host and Services Availability and
+Trends.
+___________________________________________________________________________________________________________________________________________________
+
+*Host Services.*
+
+1.  Click Hosts in the left pane. The list of hosts are displayed.
+2.  Click image:images/5913.png[image] corresponding to the host name to
+view the host details.
+3.  Select the service name to view the Service State Information. You
+can view the utilization of the following services:
+* Memory
+* Swap
+* CPU
+* Network
+* Brick
+* Disk
++
+The Brick/Disk Utilization Performance data has four sets of information
+for every mount point which are brick/disk space detail, inode detail of
+a brick/disk, thin pool utilization and thin pool metadata utilization
+if brick/disk is made up of thin LV.
++
+The Performance data for services is displayed in the following format:
+value[UnitOfMeasurement];warningthreshold;criticalthreshold;min;max.
++
+For Example,
++
+Performance Data: /bricks/brick2=31.596%;80;90;0;0.990
+/bricks/brick2.inode=0.003%;80;90;0;1048064
+/bricks/brick2.thinpool=19.500%;80;90;0;1.500
+/bricks/brick2.thinpool-metadata=4.100%;80;90;0;0.004
++
+As part of disk utilization service, the following mount points will be
+monitored: `/ , /boot, /home, /var and /usr` if available.
+4.  To view the utilization graph, click image:images/5919.png[image]
+corresponding to the service name. The utilization graph is displayed.
+5.  To monitor status, click on the service name. You can monitor the
+status for the following resources:
+* Disk
+* Network
+6.  To monitor process, click on the process name. You can monitor the
+following processes:
+* Gluster NFS (Network File System)
+* Self-Heal (Self-Heal)
+* Gluster Management (glusterd)
+* Quota (Quota daemon)
+* CTDB
+* SMB
++
+_______________________________________________________
+*Note*
+
+Monitoring Openstack Swift operations is not supported.
+_______________________________________________________
+
+*Cluster Services.*
+
+1.  Click Hosts in the left pane. The list of hosts and clusters are
+displayed.
+2.  Click image:images/5913.png[ image ] corresponding to the cluster name
+to view the cluster details.
+3.  To view utilization graph, click image:images/5919.png[ image ]
+corresponding to the service name. You can monitor the following
+utilizations:
+* Cluster
+* Volume
++
+image:images/5914.png[ ]
+4.  To monitor status, click on the service name. You can monitor the
+status for the following resources:
+* Host
+* Volume
+* Brick
+5.  To monitor cluster services, click on the service name. You can
+monitor the following:
+* Volume Quota
+* Volume Geo-replication
+* Volume Split-Brain
+* Cluster Quorum (A cluster quorum service would be present only when
+there are volumes in the cluster.)
+
+*Rescheduling Cluster Auto config using Nagios Server GUI.*
+
+If new nodes or services are added or removed, or if snapshot restore is
+performed on {{ book.productTitle }} node, reschedule the Cluster Auto
+config service using Nagios Server GUI or execute the
+`configure-gluster-nagios` command. To synchronize the configurations
+using Nagios Server GUI, perform the steps given below:
+
+1.  Login to the Nagios Server GUI using the following URL in your
+browser with nagiosadmin user name and password.
++
+-------------------------------------------------
+https://NagiosServer-HostName-or-IPaddress/nagios
+-------------------------------------------------
+2.  Click Services in left pane of Nagios server GUI and click Cluster
+Auto Config.
+3.  In Service Commands, click Re-schedule the next check of this
+service. The Command Options window is displayed.
+4.  In Command Options window, click Commit.
+
+*Enabling and Disabling Notifications using Nagios GUI.*
+
+You can enable or disable Host and Service notifications through Nagios
+GUI.
+
+* To enable and disable Host Notifcations:
+1.  Login to the Nagios Server GUI using the following URL in your
+browser with `nagiosadmin` user name and password.
++
+-------------------------------------------------
+https://NagiosServer-HostName-or-IPaddress/nagios
+-------------------------------------------------
+2.  Click Hosts in left pane of Nagios server GUI and select the host.
+3.  Click Enable notifications for this host or Disable notifications
+for this host in Host Commands section.
+4.  Click Commit to enable or disable notification for the selected
+host.
+* To enable and disable Service Notification:
+1.  Login to the Nagios Server GUI.
+2.  Click Services in left pane of Nagios server GUI and select the
+service to enable or disable.
+3.  Click Enable notifications for this service or Disable notifications
+for this service from the Service Commands section.
+4.  Click Commit to enable or disable the selected service notification.
+* To enable and disable all Service Notifications for a host:
+1.  Login to the Nagios Server GUI.
+2.  Click Hosts in left pane of Nagios server GUI and select the host to
+enable or disable all services notifications.
+3.  Click Enable notifications for all services on this host or Disable
+notifications for all services on this host from the Service Commands
+section.
+4.  Click Commit to enable or disable all service notifications for the
+selected host.
+* To enable or disable all Notifications:
+1.  Login to the Nagios Server GUI.
+2.  Click Process Info under Systems section from left pane of Nagios
+server GUI.
+3.  Click Enable notifications or Disable notifications in Process
+Commands section.
+4.  Click Commit.
+
+*Enabling and Disabling Service Monitoring using Nagios GUI.*
+
+You can enable a service to monitor or disable a service you have been
+monitoring using the Nagios GUI.
+
+* To enable Service Monitoring:
+1.  Login to the Nagios Server GUI using the following URL in your
+browser with `nagiosadmin` user name and password.
++
+-------------------------------------------------
+https://NagiosServer-HostName-or-IPaddress/nagios
+-------------------------------------------------
+2.  Click Services in left pane of Nagios server GUI and select the
+service to enable monitoring.
+3.  Click Enable active checks of this service from the Service Commands
+and click Commit.
+4.  Click Start accepting passive checks for this service from the
+Service Commands and click Commit.
++
+Monitoring is enabled for the selected service.
+* To disable Service Monitoring:
+1.  Login to the Nagios Server GUI using the following URL in your
+browser with `nagiosadmin` user name and password.
++
+-------------------------------------------------
+https://NagiosServer-HostName-or-IPaddress/nagios
+-------------------------------------------------
+2.  Click Services in left pane of Nagios server GUI and select the
+service to disable monitoring.
+3.  Click Disable active checks of this service from the Service
+Commands and click Commit.
+4.  Click Stop accepting passive checks for this service from the
+Service Commands and click Commit.
++
+Monitoring is disabled for the selected service.
+
+*Monitoring Services Status and Messages.*
+
+_____________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+*Note*
+
+Nagios sends email and SNMP notifications, once a service status
+changes. Refer Configuring Nagios Server to Send Mail Notifications
+section of {{ book.productTitle }} 3 Console Administation Guide to
+configure email notification and Configuring Simple Network Management
+Protocol (SNMP) Notification section of {{ book.productTitle }} 3
+Administation Guide to configure SNMP notification.
+_____________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+
+[cols=",,,",options="header",]
+|=======================================================================
+|Service Name |Status |Messsage |Description
+|SMB |OK |OK: No gluster volume uses smb |When no volumes are exported
+through smb.
+
+|OK |Process smb is running |When SMB service is running and when
+volumes are exported using SMB.
+
+|CRITICAL |CRITICAL: Process smb is not running |When SMB service is
+down and one or more volumes are exported through SMB.
+
+|CTDB |UNKNOWN |CTDB not configured |When CTDB service is not running,
+and smb or nfs service is running.
+
+|CRITICAL |Node status: BANNED/STOPPED |When CTDB service is running but
+Node status is __BANNED__/__STOPPED__.
+
+|WARNING |Node status: UNHEALTHY/DISABLED/PARTIALLY_ONLINE |When CTDB
+service is running but Node status is
+__UNHEALTHY__/__DISABLED__/__PARTIALLY_ONLINE__.
+
+|OK |Node status: OK |When CTDB service is running and healthy.
+
+|Gluster Management |OK |Process glusterd is running |When glusterd is
+running as unique.
+
+|WARNING |PROCS WARNING: 3 processes |When there are more then one
+glusterd is running.
+
+|CRITICAL |CRITICAL: Process glusterd is not running |When there is no
+glusterd process running.
+
+|UNKNOWN |NRPE: Unable to read output |When unable to communicate or
+read output
+
+|Gluster NFS |OK |OK: No gluster volume uses nfs |When no volumes are
+configured to be exported through NFS.
+
+|OK |Process glusterfs-nfs is running |When glusterfs-nfs process is
+running.
+
+|CRITICAL |CRITICAL: Process glusterfs-nfs is not running |When
+glusterfs-nfs process is down and there are volumes which requires NFS
+export.
+
+|Auto-Config |OK |Cluster configurations are in sync |When auto-config
+has not detected any change in Gluster configuration. This shows that
+Nagios configuration is already in synchronization with the Gluster
+configuration and auto-config service has not made any change in Nagios
+configuration.
+
+|OK |Cluster configurations synchronized successfully from host
+host-address |When auto-config has detected change in the Gluster
+configuration and has successfully updated the Nagios configuration to
+reflect the change Gluster configuration.
+
+|CRITICAL |Can't remove all hosts except sync host in 'auto' mode. Run
+auto discovery manually. |When the host used for auto-config itself is
+removed from the Gluster peer list. Auto-config will detect this as all
+host except the synchronized host is removed from the cluster. This will
+not change the Nagios configuration and the user need to manually run
+the auto-config.
+
+|QUOTA |OK |OK: Quota not enabled |When quota is not enabled in any
+volumes.
+
+|OK |Process quotad is running |When glusterfs-quota service is running.
+
+|CRITICAL |CRITICAL: Process quotad is not running |When glusterfs-quota
+service is down and quota is enabled for one or more volumes.
+
+|CPU Utilization |OK |CPU Status OK: Total CPU:4.6% Idle CPU:95.40%
+|When CPU usage is less than 80%.
+
+|WARNING |CPU Status WARNING: Total CPU:82.40% Idle CPU:17.60% |When CPU
+usage is more than 80%.
+
+|CRITICAL |CPU Status CRITICAL: Total CPU:97.40% Idle CPU:2.6% |When CPU
+usage is more than 90%.
+
+|Memory Utilization |OK |OK- 65.49% used(1.28GB out of 1.96GB) |When
+used memory is below warning threshold. (Default warning threshold is
+80%)
+
+|WARNING |WARNING- 85% used(1.78GB out of 2.10GB) |When used memory is
+below critical threshold (Default critical threshold is 90%) and greater
+than or equal to warning threshold (Default warning threshold is 80%).
+
+|CRITICAL |CRITICAL- 92% used(1.93GB out of 2.10GB) |When used memory is
+greater than or equal to critical threshold (Default critical threshold
+is 90% )
+
+|Brick Utilization |OK |OK |When used space of any of the four
+parameters, space detail, inode detail, thin pool, and thin
+pool-metadata utilizations, are below threshold of 80%.
+
+|WARNING |WARNING:mount point /brick/brk1 Space used (0.857 / 1.000) GB
+|If any of the four parameters, space detail, inode detail, thin pool
+utilization, and thinpool-metadata utilization, crosses warning
+threshold of 80% (Default is 80%).
+
+|CRITICAL |CRITICAL : mount point /brick/brk1 (inode used 9980/1000) |If
+any of the four parameters, space detail, inode detail, thin pool
+utilization, and thinpool-metadata utilizations, crosses critical
+threshold 90% (Default is 90%).
+
+|Disk Utilization |OK |OK |When used space of any of the four
+parameters, space detail, inode detail, thin pool utilization, and
+thinpool-metadata utilizations, are below threshold of 80%.
+
+|WARNING |WARNING:mount point /boot Space used (0.857 / 1.000) GB |When
+used space of any of the four parameters, space detail, inode detail,
+thin pool utilization, and thinpool-metadata utilizations, are above
+warning threshold of 80%.
+
+|CRITICAL |CRITICAL : mount point /home (inode used 9980/1000) |If any
+of the four parameters, space detail, inode detail, thin pool
+utilization, and thinpool-metadata utilizations, crosses critical
+threshold 90% (Default is 90%).
+
+|Network Utilization |OK |OK: tun0:UP,wlp3s0:UP,virbr0:UP |When all the
+interfaces are UP.
+
+|WARNING |WARNING: tun0:UP,wlp3s0:UP,virbr0:DOWN |When any of the
+interfaces is down.
+
+|UNKNOWN |UNKNOWN |When network utilization/status is unknown.
+
+|Swap Utilization |OK |OK- 0.00% used(0.00GB out of 1.00GB) |When used
+memory is below warning threshold (Default warning threshold is 80%).
+
+|WARNING |WARNING- 83% used(1.24GB out of 1.50GB) |When used memory is
+below critical threshold (Default critical threshold is 90%) and greater
+than or equal to warning threshold (Default warning threshold is 80%).
+
+|CRITICAL |CRITICAL- 83% used(1.42GB out of 1.50GB) |When used memory is
+greater than or equal to critical threshold (Default critical threshold
+is 90%).
+
+|Cluster Quorum |PENDING | |When cluster.quorum-type is not set to
+__server__; or when there are no problems in the cluster identified.
+
+|OK |Quorum regained for volume |When quorum is regained for volume.
+
+|CRITICAL |Quorum lost for volume |When quorum is lost for volume.
+
+|Volume Geo-replication |OK |"Session Status: slave_vol1-OK
+.....slave_voln-OK. |When all sessions are active.
+
+|OK |Session status :No active sessions found |When Geo-replication
+sessions are deleted.
+
+|CRITICAL |Session Status: slave_vol1-FAULTY slave_vol2-OK |If one or
+more nodes are Faulty and there's no replica pair that's active.
+
+|WARNING |Session Status: slave_vol1-NOT_STARTED slave_vol2-STOPPED
+slave_vol3- PARTIAL_FAULTY a|
+* Partial faulty state occurs with replicated and distributed replicate
+volume when one node is faulty, but the replica pair is active.
+* STOPPED state occurs when Geo-replication sessions are stopped.
+* NOT_STARTED state occurs when there are multiple Geo-replication
+sessions and one of them is stopped.
+
+|WARNING |Geo replication status could not be determined. |When there's
+an error in getting Geo replication status. This error occurs when
+volfile is locked as another transaction is in progress.
+
+|UNKNOWN |Geo replication status could not be determined. |When glusterd
+is down.
+
+|Volume Quota |OK |QUOTA: not enabled or configured |When quota is not
+set
+
+|OK |QUOTA:OK |When quota is set and usage is below quota limits.
+
+|WARNING |QUOTA:Soft limit exceeded on path of directory |When quota
+exceeds soft limit.
+
+|CRITICAL |QUOTA:hard limit reached on path of directory |When quota
+reaches hard limit.
+
+|UNKNOWN |QUOTA: Quota status could not be determined as command
+execution failed a|
+When there's an error in getting Quota status. This occurs when
+* Volume is stopped or glusterd service is down.
+* volfile is locked as another transaction in progress.
+
+|Volume Status |OK |Volume : volume type - All bricks are Up |When all
+volumes are up.
+
+|WARNING |Volume :volume type Brick(s) - list of bricks is|are down, but
+replica pair(s) are up |When bricks in the volume are down but replica
+pairs are up.
+
+|UNKNOWN |Command execution failed Failure message |When command
+execution fails.
+
+|CRITICAL |Volume not found. |When volumes are not found.
+
+|CRITICAL |Volume: volume-type is stopped. |When volumes are stopped.
+
+|CRITICAL |Volume : volume type - All bricks are down. |When all bricks
+are down.
+
+|CRITICAL |Volume : volume type Bricks - brick list are down, along with
+one or more replica pairs |When bricks are down along with one or more
+replica pairs.
+
+a|
+Volume Self-Heal
+
+(available in {{ book.productTitle }} version 3.1.0 and earlier)
+
+ |OK | |When volume is not a replicated volume, there is no self-heal to
+be done.
+
+|OK |No unsynced entries present |When there are no unsynched entries in
+a replicated volume.
+
+|WARNING |Unsynched entries present : There are unsynched entries
+present. |If self-heal process is turned on, these entries may be auto
+healed. If not, self-heal will need to be run manually. If
+unsynchronized entries persist over time, this could indicate a split
+brain scenario.
+
+|WARNING |Self heal status could not be determined as the volume was
+deleted |When self-heal status can not be determined as the volume is
+deleted.
+
+|UNKNOWN | a|
+When there's an error in getting self heal status. This error occurs
+when:
+
+* Volume is stopped or glusterd service is down.
+* volfile is locked as another transaction in progress.
+
+a|
+Volume Self-Heal Info
+
+(available in {{ book.productTitle }} version 3.1.3 and later)
+
+ |OK |No unsynced entries found. |Displayed when there are no entries in
+a replicated volume that haven't been synced.
+
+|WARNING |Unsynced entries found. |Displayed when there are entries in a
+replicated volume that still need to be synced. If self-heal is enabled,
+these may heal automatically. If self-heal is not enabled, healing must
+be run manually.
+
+|WARNING |Volume heal information could not be determined. |Displayed
+when self-heal status cannot be determined, usually because the volume
+has been deleted.
+
+|UNKNOWN |Glusterd cannot be queried. |Displayed when self-heal status
+cannot be retrieved. usually because the volume has been stopped, the
+glusterd service is down, or the volfile is locked because another
+transaction is in progress.
+
+a|
+Volume Split-Brain Status
+
+(available in {{ book.productTitle }} version 3.1.1 and later)
+
+ |OK |No split-brain entries found. |Displayed when files are present
+and do not have split-brain issues.
+
+|UNKNOWN |Glusterd cannot be queried. |Displayed when split-brain status
+cannot be retrieved, usually because the volume has been stopped, the
+glusterd service is down, or the volfile is locked because another
+transaction is in progress.
+
+|WARNING |Volume split-brain status could not be determined. |Displayed
+when split-brain status cannot be determined, usually because the volume
+no longer exists.
+
+|CRITICAL |14 entries found in split-brain state. |Displays the number
+of files in a split-brain state when files in split-brain state are
+detected.
+
+|Cluster Utilization |OK |OK : 28.0% used (1.68GB out of 6.0GB) |When
+used % is below the warning threshold (Default warning threshold is
+80%).
+
+|WARNING |WARNING: 82.0% used (4.92GB out of 6.0GB) |Used% is above the
+warning limit. (Default warning threshold is 80%)
+
+|CRITICAL |CRITICAL : 92.0% used (5.52GB out of 6.0GB) |Used% is above
+the warning limit. (Default critical threshold is 90%)
+
+|UNKNOWN |Volume utilization data could not be read |When volume
+services are present, but the volume utilization data is not available
+as it's either not populated yet or there is error in fetching volume
+utilization data.
+
+|Volume Utilization |OK |OK: Utilization: 40 % |When used % is below the
+warning threshold (Default warning threshold is 80%).
+
+|WARNING |WARNING - used 84% of available 200 GB |When used % is above
+the warning threshold (Default warning threshold is 80%).
+
+|CRITICAL |CRITICAL - used 96% of available 200 GB |When used % is above
+the critical threshold (Default critical threshold is 90%).
+
+|UNKNOWN |UNKNOWN - Volume utilization data could not be read |When all
+the bricks in the volume are killed or if glusterd is stopped in all the
+nodes in a cluster.
+|=======================================================================
+
+[[sect-Monitoring_Notifications]]
+= Monitoring Notifications
+
+[[Configuring_Nagios_to_Send_Mail_Notifications]]
+== Configuring Nagios Server to Send Mail Notifications
+
+1.  In the `/etc/nagios/gluster/gluster-contacts.cfg` file, add contacts
+to send mail in the format shown below:
++
+Modify `contact_name`, `alias`, and `email`.
++
+-----------------------------------------------------------------------
+define contact {
+        contact_name                            Contact1
+        alias                                   ContactNameAlias
+        email                                   email-address
+        service_notification_period             24x7
+        service_notification_options            w,u,c,r,f,s
+        service_notification_commands           notify-service-by-email
+        host_notification_period                24x7
+        host_notification_options               d,u,r,f,s
+        host_notification_commands              notify-host-by-email
+}
+define contact {
+        contact_name                            Contact2
+        alias                                   ContactNameAlias2
+        email                                   email-address
+        service_notification_period             24x7
+        service_notification_options            w,u,c,r,f,s
+        service_notification_commands           notify-service-by-email
+        host_notification_period                24x7
+        host_notification_options               d,u,r,f,s
+        host_notification_commands              notify-host-by-email
+}
+-----------------------------------------------------------------------
++
+The `service_notification_options` directive is used to define the
+service states for which notifications can be sent out to this contact.
+Valid options are a combination of one or more of the following:
+* `w`: Notify on WARNING service states
+* `u`: Notify on UNKNOWN service states
+* `c`: Notify on CRITICAL service states
+* `r`: Notify on service RECOVERY (OK states)
+* `f`: Notify when the service starts and stops FLAPPING
+* `n (none)`: Do not notify the contact on any type of service
+notifications
++
+The `host_notification_options` directive is used to define the host
+states for which notifications can be sent out to this contact. Valid
+options are a combination of one or more of the following:
+* `d`: Notify on DOWN host states
+* `u`: Notify on UNREACHABLE host states
+* `r`: Notify on host RECOVERY (UP states)
+* `f`: Notify when the host starts and stops FLAPPING
+* `s`: Send notifications when host or service scheduled downtime starts
+and ends
+* `n (none)`: Do not notify the contact on any type of host
+notifications.
++
+_____________________________________________________________________________________________________________________________________________________________________________________________________________________
+*Note*
+
+By default, a contact and a contact group are defined for administrators
+in contacts.cfg and all the services and hosts will notify the
+administrators. Add suitable email id for administrator in contacts.cfg
+file.
+_____________________________________________________________________________________________________________________________________________________________________________________________________________________
+2.  To add a group to which the mail need to be sent, add the details as
+given below:
++
+-------------------------------------------------------------
+  define contactgroup{
+        contactgroup_name                   Group1
+        alias                               GroupAlias
+        members                             Contact1,Contact2
+}
+-------------------------------------------------------------
+3.  In the /etc/nagios/gluster/gluster-templates.cfg file specify the
+contact name and contact group name for the services for which the
+notification need to be sent, as shown below:
++
+Add contact_groups name and contacts name.
++
+----------------------------------------------------
+define host{
+   name                         gluster-generic-host
+   use                          linux-server
+   notifications_enabled        1
+   notification_period          24x7
+   notification_interval        120
+   notification_options         d,u,r,f,s
+   register                     0
+   contact_groups         Group1
+   contacts                     Contact1,Contact2
+   }
+
+ define service {
+   name                         gluster-service
+   use                          generic-service
+   notifications_enabled       1
+   notification_period          24x7
+   notification_options         w,u,c,r,f,s
+   notification_interval        120
+   register                     0
+   _gluster_entity              Service
+   contact_groups        Group1
+   contacts                 Contact1,Contact2
+
+}
+   
+----------------------------------------------------
++
+You can configure notification for individual services by editing the
+corresponding node configuration file. For example, to configure
+notification for brick service, edit the corresponding node
+configuration file as shown below:
++
+--------------------------------------------------------------
+define service {
+  use                            brick-service
+  _VOL_NAME                      VolumeName
+  __GENERATED_BY_AUTOCONFIG      1
+  notes                          Volume : VolumeName
+  host_name                      RedHatStorageNodeName
+  _BRICK_DIR                     brickpath
+  service_description            Brick Utilization - brickpath
+  contact_groups          Group1
+    contacts                Contact1,Contact2
+}
+--------------------------------------------------------------
+4.  To receive detailed information on every update when Cluster
+Auto-Config is run, edit `/etc/nagios/objects/commands.cfg` file add
+`$NOTIFICATIONCOMMENT$\n` after `$SERVICEOUTPUT$\n` option in
+`notify-service-by-email` and ` notify-host-by-email`command definition
+as shown below:
++
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# 'notify-service-by-email' command definition
+define command{
+        command_name    notify-service-by-email
+        command_line    /usr/bin/printf "%b" "***** Nagios *****\n\nNotification Type: $NOTIFICATIONTYPE$\n\nService: $SERVICEDESC$\nHost: $HOSTALIAS$\nAddress: $HOSTADDRESS$\nState: $SERVICESTATE$\n\nDate/Time: $LONGDATETIME$\n\nAdditional Info:\n\n$SERVICEOUTPUT$\n $NOTIFICATIONCOMMENT$\n" | /bin/mail -s "** $NOTIFICATIONTYPE$ Service Alert: $HOSTALIAS$/$SERVICEDESC$ is $SERVICESTATE$ **" $CONTACTEMAIL$
+        }
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+5.  Restart the Nagios server using the following command:
++
+------------------------
+# service nagios restart
+------------------------
+
+The Nagios server sends notifications during status changes to the mail
+addresses specified in the file.
+
+______________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+*Note*
+
+* By default, the system ensures three occurences of the event before
+sending mail notifications.
+* By default, Nagios Mail notification is sent using `/bin/mail`
+command. To change this, modify the definition for
+`notify-host-by-email` command and `notify-service-by-email` command in
+`/etc/nagios/objects/commands.cfg` file and configure the mail server
+accordingly.
+* Ensure that the mail server is setup and configured.
+______________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+
+[[Configuring_SNMP_Notification]]
+== Configuring Simple Network Management Protocol (SNMP) Notification
+
+1.  Log in as _root_ user.
+2.  In the `/etc/nagios/gluster/snmpmanagers.conf` file, specify the
+Host Name or IP address and community name of the SNMP managers to whom
+the SNMP traps need to be sent as shown below:
++
+-----------------------------
+HostName-or-IP-address public
+-----------------------------
++
+In the /etc/nagios/gluster/gluster-contacts.cfg file specify the
+contacts name as +snmp as shown below:
++
+-------------------------------------------------------------------
+define contact {
+       contact_name                  snmp
+       alias                         Snmp Traps
+       email                         admin@ovirt.com
+       service_notification_period   24x7
+       service_notification_options  w,u,c,r,f,s
+       service_notification_commands gluster-notify-service-by-snmp
+       host_notification_period      24x7
+       host_notification_options     d,u,r,f,s
+       host_notification_commands    gluster-notify-host-by-snmp
+}
+-------------------------------------------------------------------
++
+You can download the required Management Information Base (MIB) files
+from the URLs given below:
+* NAGIOS-NOTIFY-MIB:
+https://github.com/nagios-plugins/nagios-mib/blob/master/MIB/NAGIOS-NOTIFY-MIB[]
+* NAGIOS-ROOT-MIB:
+https://github.com/nagios-plugins/nagios-mib/blob/master/MIB/NAGIOS-ROOT-MIB[]
+3.  Restart Nagios using the following command:
++
+------------------------
+# service nagios restart
+------------------------
+
+[[sect-Nagios_Advanced_Configuration]]
+= Nagios Advanced Configuration
+
+[[Creating_Nagios_User]]
+== Creating Nagios User
+
+To create a new Nagios user and set permissions for that user, follow
+the steps given below:
+
+1.  Login as `root` user.
+2.  Run the command given below with the new user name and type the
+password when prompted.
++
+-----------------------------------------
+# htpasswd /etc/nagios/passwd newUserName
+-----------------------------------------
+3.  Add permissions for the new user in `/etc/nagios/cgi.cfg` file as
+shown below:
++
+----------------------------------------------------------------
+authorized_for_system_information=nagiosadmin,newUserName
+authorized_for_configuration_information=nagiosadmin,newUserName
+authorized_for_system_commands=nagiosadmin,newUserName
+authorized_for_all_services=nagiosadmin,newUserName
+authorized_for_all_hosts=nagiosadmin,newUserName
+authorized_for_all_service_commands=nagiosadmin,newUserName
+authorized_for_all_host_commands=nagiosadmin,newUserName
+----------------------------------------------------------------
++
+___________________________________________________________________________________________________________________
+*Note*
+
+To set `read only` permission for users, add
+`authorized_for_read_only=username` in the `/etc/nagios/cgi.cfg` file.
+___________________________________________________________________________________________________________________
+4.  Start `nagios` and `httpd` services using the following commands:
++
+------------------------
+# service httpd restart
+# service nagios restart
+------------------------
+5.  Verify Nagios access by using the following URL in your browser, and
+using the user name and password.
++
+-------------------------------------------------
+https://NagiosServer-HostName-or-IPaddress/nagios
+-------------------------------------------------
++
+Description
+
+[[Changing_Nagios_Password]]
+== Changing Nagios Password
+
+The default Nagios user name and password is `nagiosadmin`. This value
+is available in the `/etc/nagios/cgi.cfg` file.
+
+1.  Login as `root` user.
+2.  To change the default password for the Nagios Administrator user,
+run the following command with the new password:
++
+---------------------------------------------
+# htpasswd -c /etc/nagios/passwd nagiosadmin 
+---------------------------------------------
+3.  Start `nagios` and `httpd` services using the following commands:
++
+------------------------
+# service httpd restart
+# service nagios restart
+------------------------
+4.  Verify Nagios access by using the following URL in your browser, and
+using the user name and password that was set in Step 2:
++
+-------------------------------------------------
+https://NagiosServer-HostName-or-IPaddress/nagios
+-------------------------------------------------
++
+Description
+
+[[Configuring_SSL3]]
+== Configuring SSL
+
+For secure access of Nagios URL, configure SSL:
+
+1.  Create a 1024 bit RSA key using the following command:
++
+--------------------------------------------------------------
+openssl genrsa -out /etc/ssl/private/{cert-file-name.key} 1024
+--------------------------------------------------------------
+2.  Create an SSL certificate for the server using the following
+command:
++
+---------------------------------------------------------------------------------------------------------------
+openssl req -key nagios-ssl.key -new | openssl x509 -out nagios-ssl.crt -days 365 -signkey  nagios-ssl.key -req
+---------------------------------------------------------------------------------------------------------------
++
+Enter the server's host name which is used to access the Nagios Server
+GUI as __Common Name__.
+3.  Edit the `/etc/httpd/conf.d/ssl.conf` file and add path to SSL
+Certificate and key files correspondingly for `SSLCertificateFile` and
+`SSLCertificateKeyFile` fields as shown below:
++
+-----------------------------------------------------------
+ SSLCertificateFile     /etc/pki/tls/certs/nagios-ssl.crt
+ SSLCertificateKeyFile  /etc/pki/tls/private/nagios-ssl.key
+-----------------------------------------------------------
+4.  Edit the `/etc/httpd/conf/httpd.conf` file and comment the port 80
+listener as shown below:
++
+-----------
+# Listen 80
+-----------
+5.  In `/etc/httpd/conf/httpd.conf` file, ensure that the following line
+is not commented:
++
+---------------------------
+<Directory "/var/www/html">
+---------------------------
+6.  Restart the `httpd` service on the `nagios` server using the
+following command:
++
+-----------------------
+# service httpd restart
+-----------------------
+
+[[Integrating_LDAP_Authentication_with_Nagios]]
+== Integrating LDAP Authentication with Nagios
+
+You can integrate LDAP authentication with Nagios plug-in. To integrate
+LDAP authentication, follow the steps given below:
+
+1.  In apache configuration file `/etc/httpd/conf/httpd.conf`, ensure
+that LDAP is installed and LDAP apache module is enabled.
++
+The configurations are displayed as given below if the LDAP apache
+module is enabled.You can enable the LDAP apache module by deleting the
+_#_ symbol.
++
+--------------------------------------------------------
+LoadModule ldap_module modules/mod_ldap.so
+LoadModule authnz_ldap_module modules/mod_authnz_ldap.so
+--------------------------------------------------------
+2.  Edit the `nagios.conf` file in `/etc/httpd/conf.d/nagios.conf` with
+the corresponding values for the following:
+* AuthBasicProvider
+* AuthLDAPURL
+* AuthLDAPBindDN
+* AuthLDAPBindPassword
+3.  Edit the CGI authentication file `/etc/nagios/cgi.cfg` as given
+below with the path where Nagios is installed.
++
+----------------------------------------------------------
+nagiosinstallationdir = /usr/local/nagios/ or /etc/nagios/
+----------------------------------------------------------
+4.  Uncomment the lines shown below by deleting _#_ and set permissions
+for specific users:
++
+___________________________________________________________________________________________________
+*Note*
+
+Replace `nagiosadmin` and _user names_ with _*_ to give any LDAP user
+full functionality of Nagios.
+___________________________________________________________________________________________________
++
+----------------------------------------------------------------------
+authorized_for_system_information=user1,user2,user3
+
+authorized_for_configuration_information=nagiosadmin,user1,user2,user3
+
+authorized_for_system_commands=nagiosadmin,user1,user2,user3
+
+authorized_for_all_services=nagiosadmin,user1,user2,user3
+
+authorized_for_all_hosts=nagiosadmin,user1,user2,user3
+
+authorized_for_all_service_commands=nagiosadmin,user1,user2,user3
+
+authorized_for_all_host_commands=nagiosadmin,user1,user2,user3
+----------------------------------------------------------------------
+5.  Restart `httpd` service and `nagios` server using the following
+commands:
++
+------------------------
+# service httpd restart
+# service nagios restart
+   
+------------------------
+
+[[Configuring_Nagios_Manually]]
+= Configuring Nagios Manually
+
+You can configure the Nagios server and node manually to monitor a
+{{ book.productTitle }} trusted storage pool.
+
+__________________________________________________________________________________________________________________________________
+*Note*
+
+It is recommended to configure Nagios using Auto-Discovery. For more
+information on configuring Nagios using Auto-Discovery, see
+<<Configuring_Nagios_using_Auto-Discovery, Configuring Nagios using Auto-Discovery>>
+__________________________________________________________________________________________________________________________________
+
+For more information on Nagios Configuration files, see
+<<../appendices/chap-Nagios_Configuration_Files.adoc#chap-Nagios_Configuration_Files, Nagios Configuration Files>>
+
+*Configuring Nagios Server.*
+
+1.  In the /etc/nagios/gluster directory, create a directory with the
+cluster name. All configurations for the cluster are added in this
+directory.
+2.  In the `/etc/nagios/gluster/cluster-name` directory, create a file
+with name `clustername.cfg` to specify the host and hostgroup
+configurations. The service configurations for all the cluster and
+volume level services are added in this file.
++
+_______________________________________________________
+*Note*
+
+Cluster is configured as host and host group in Nagios.
+_______________________________________________________
++
+In the `clustername.cfg` file, add the following definitions:
+1.  Define a host group with cluster name as shown below:
++
+--------------------------------------------------------
+define hostgroup{
+             hostgroup_name                 cluster-name
+             alias                          cluster-name
+    }
+--------------------------------------------------------
+2.  Define a host with cluster name as shown below:
++
+----------------------------------------------------------
+ define host{
+            host_name                      cluster-name
+            alias                          cluster-name
+            use                            gluster-cluster
+            address                        cluster-name
+    } 
+----------------------------------------------------------
+3.  Define _Cluster-Quorum_ service to monitor cluster quorum status as
+shown below:
++
+-------------------------------------------------------------------
+define service {
+             service_description            Cluster - Quorum
+             use                            gluster-passive-service
+        host_name                      cluster-name
+    }
+-------------------------------------------------------------------
+4.  Define the _Cluster Utilization_ service to monitor cluster
+utilization as shown below:
++
+-------------------------------------------------------------------------------------------
+define service {
+             service_description              Cluster Utilization
+             use gluster-service-with-graph
+             check_command     check_cluster_vol_usage!warning-threshold!critcal-threshold;
+             host_name                        cluster-name
+    } 
+-------------------------------------------------------------------------------------------
+5.  Add the following service definitions for each volume in the
+cluster:
+* Volume Status service to monitor the status of the volume as shown
+below:
++
+----------------------------------------------------------------------------
+define service {
+                 service_description             Volume Status - volume-name
+                 host_name                       cluster-name
+                 use gluster-service-without-graph
+                 _VOL_NAME                       volume-name
+                 notes                           Volume type : Volume-Type
+                 check_command     check_vol_status!cluster-name!volume-name
+        }
+----------------------------------------------------------------------------
+* Volume Utilization service to monitor the volume utilization as shown
+below:
++
+---------------------------------------------------------------------------------------------------------------------
+define service {
+                 service_description             Volume Utilization - volume-name
+                 host_name                       cluster-name
+                 use gluster-service-with-graph
+                 _VOL_NAME                       volume-name
+                 notes                           Volume type : Volume-Type
+                 check_command     check_vol_utilization!cluster-name!volume-name!warning-threshold!critcal-threshold
+        }
+---------------------------------------------------------------------------------------------------------------------
+* Volume Split-brain service to monitor split brain status as shown
+below:
++
+------------------------------------------------------------------------------------------
+define service {
+                         service_description    Volume Split-brain status - volume-name
+                         host_name                 cluster-name
+                         use gluster-service-without-graph
+                         _VOL_NAME                      volume-name
+                        check_command                  check_vol_heal_status!cluster1!vol1
+}
+------------------------------------------------------------------------------------------
+* Volume Quota service to monitor the volume quota status as shown
+below:
++
+---------------------------------------------------------------------------------
+define service {
+                 service_description            Volume Quota - volume-name
+                 host_name                      cluster-name
+                 use gluster-service-without-graph
+                 _VOL_NAME                      volume-name
+                 check_command    check_vol_quota_status!cluster-name!volume-name
+                 notes                          Volume type : Volume-Type
+        }
+---------------------------------------------------------------------------------
+* Volume Geo-Replication service to monitor Geo Replication status as
+shown below:
++
+------------------------------------------------------------------------------------
+define service {
+                 service_description            Volume Geo Replication - volume-name
+                 host_name                      cluster-name
+                 use gluster-service-without-graph
+                 _VOL_NAME                      volume-name
+                 check_command    check_vol_georep_status!cluster-name!volume-name
+        }
+------------------------------------------------------------------------------------
+3.  In the `/etc/nagios/gluster/cluster-name` directory, create a file
+with name `host-name.cfg`. The host configuration for the node and
+service configuration for all the brick from the node are added in this
+file.
++
+In `host-name.cfg` file, add following definitions:
+1.  Define Host for the node as shown below:
++
+----------------------------------------------------------------------------------------------------
+ define host {
+         use                            gluster-host
+         hostgroups    gluster_hosts,cluster-name
+         alias                          host-name
+         host_name                      host-name #Name given by user to identify the node in Nagios
+         _HOST_UUID                     host-uuid #Host UUID returned by gluster peer status
+         address                        host-address  # This can be FQDN or IP address of the host
+      } 
+----------------------------------------------------------------------------------------------------
+2.  Create the following services for each brick in the node:
+* Add _Brick Utilization_ service as shown below:
++
+----------------------------------------------------------------------------------------------
+define service {
+                service_description            Brick Utilization - brick-path
+                 host_name                     host-name  # Host name given in host definition
+                 use                           brick-service
+                 _VOL_NAME                     Volume-Name
+                 notes                         Volume : Volume-Name
+                 _BRICK_DIR                    brick-path
+        }
+----------------------------------------------------------------------------------------------
+* Add _Brick Status_ service as shown below:
++
+----------------------------------------------------------------------------------------------
+define service {
+                 service_description           Brick - brick-path
+                 host_name                     host-name  # Host name given in host definition
+                 use          gluster-brick-status-service
+                 _VOL_NAME                     Volume-Name
+                 notes                         Volume : Volume-Name
+                 _BRICK_DIR                    brick-path
+        } 
+----------------------------------------------------------------------------------------------
+4.  Add host configurations and service configurations for all nodes in
+the cluster as shown in Step 3.
+
+*Configuring {{ book.productTitle }} node.*
+
+1.  In /etc/nagios directory of each {{ book.productTitle }} node, edit
+`nagios_server.conf` file by setting the configurations as shown below:
++
+-----------------------------------------------------------------------
+# NAGIOS SERVER
+# The nagios server IP address or FQDN to which the NSCA command
+# needs to be sent
+[NAGIOS-SERVER]
+nagios_server=NagiosServerIPAddress
+
+
+# CLUSTER NAME
+# The host name of the logical cluster configured in Nagios under which
+# the gluster volume services reside
+[NAGIOS-DEFINTIONS]
+cluster_name=cluster_auto
+
+
+# LOCAL HOST NAME
+# Host name given in the nagios server
+[HOST-NAME]
+hostname_in_nagios=NameOfTheHostInNagios
+
+# LOCAL HOST CONFIGURATION
+# Process monitoring sleeping intevel
+[HOST-CONF]
+proc-mon-sleep-time=TimeInSeconds
+-----------------------------------------------------------------------
++
+The `nagios_server.conf` file is used by glusterpmd service to get
+server name, host name, and the process monitoring interval time.
+2.  Start the glusterpmd service using the following command:
++
+--------------------------
+# service glusterpmd start
+--------------------------
+
+*Changing Nagios Monitoring time interval.*
+
+By default, the active {{ book.productTitle }} services are monitored
+every 10 minutes. You can change the time interval for monitoring by
+editing the gluster-templates.cfg file.
+
+1.  In /etc/nagios/gluster/gluster-templates.cfg file, edit the service
+with gluster-service name.
+2.  Add normal_check_interval and set the time interval to 1 to check
+all {{ book.productTitle }} services every 1 minute as shown below:
++
+-----------------------------------------------
+define service {
+   name                         gluster-service
+   use                          generic-service
+   notifications_enabled        1
+   notification_period          24x7
+   notification_options         w,u,c,r,f,s
+   notification_interval        120
+   register                     0
+   contacts                     +ovirt,snmp
+   _GLUSTER_ENTITY              HOST_SERVICE
+   normal_check_interval        1
+}
+-----------------------------------------------
+3.  To change this on individual service, add this property to the
+required service definition as shown below:
++
+-------------------------------------------------------
+define service {
+   name                    gluster-brick-status-service
+   use                     gluster-service
+   register                0
+   event_handler           brick_status_event_handler
+   check_command           check_brick_status
+   normal_check_interval   1
+}
+-------------------------------------------------------
++
+The check_interval is controlled by the global directive
+interval_length. This defaults to 60 seconds. This can be changed in
+/etc/nagios/nagios.cfg as shown below:
++
+---------------------------------------------------------------------
+# INTERVAL LENGTH
+# This is the seconds per unit interval as used in the
+# host/contact/service configuration files.  Setting this to 60 means
+# that each interval is one minute long (60 seconds).  Other settings
+# have not been tested much, so your mileage is likely to vary...
+
+interval_length=TimeInSeconds
+---------------------------------------------------------------------
+
+[[sect-Troubleshooting_Nagios]]
+= Troubleshooting Nagios
+
+[[Troubleshooting_NSCA_and_NRPE_Configuration_Issues]]
+== Troubleshooting NSCA and NRPE Configuration Issues
+
+The possible errors while configuring Nagios Service Check Acceptor
+(NSCA) and Nagios Remote Plug-in Executor (NRPE) and the troubleshooting
+steps are listed in this section.
+
+*Troubleshooting NSCA Configuration Issues.*
+
+* *Check Firewall and Port Settings on Nagios Server*
++
+If port 5667 is not opened on the server host's firewall, a timeout
+error is displayed. Ensure that port _5667_ is opened.
+1.  Log in as root and run the following command on the {{ book.productTitle }}
+node to get the list of current iptables rules:
++
+-------------
+# iptables -L
+-------------
+2.  The output is displayed as shown below:
++
+-------------------------------------------------------------------------
+ACCEPT     tcp  --  anywhere             anywhere            tcp dpt:5667
+-------------------------------------------------------------------------
+1.  Run the following command on the {{ book.productTitle }} node as
+root to get a listing of the current firewall rules:
++
+-------------------------------
+# firewall-cmd --list-all-zones
+-------------------------------
+2.  If the port is open, `5667/tcp` is listed beside `ports:` under one
+or more zones in your output.
+* If the port is not open, add a firewall rule for the port:
+1.  If the port is not open, add an iptables rule by adding the
+following line in `/etc/sysconfig/iptables` file:
++
+------------------------------------------------------------------
+-A INPUT -m state --state NEW -m tcp -p tcp --dport 5667 -j ACCEPT
+------------------------------------------------------------------
+2.  Restart the iptables service using the following command:
++
+--------------------------
+# service iptables restart
+--------------------------
+3.  Restart the NSCA service using the following command:
++
+----------------------
+# service nsca restart
+----------------------
+1.  Run the following commands to open the port:
++
+------------------------------------------------------------
+# firewall-cmd --zone=public --add-port=5667/tcp
+# firewall-cmd --zone=public --add-port=5667/tcp --permanent
+------------------------------------------------------------
+* *Check the Configuration File on {{ book.productTitle }} Node*
++
+Messages cannot be sent to the NSCA server, if Nagios server IP or FQDN,
+cluster name and hostname (as configured in Nagios server) are not
+configured correctly.
++
+Open the Nagios server configuration file
+_/etc/nagios/nagios_server.conf_ and verify if the correct
+configurations are set as shown below:
++
+-----------------------------------------------------------------------
+# NAGIOS SERVER
+# The nagios server IP address or FQDN to which the NSCA command
+# needs to be sent
+[NAGIOS-SERVER]
+nagios_server=NagiosServerIPAddress
+
+
+# CLUSTER NAME
+# The host name of the logical cluster configured in Nagios under which
+# the gluster volume services reside
+[NAGIOS-DEFINTIONS]
+cluster_name=cluster_auto
+
+
+# LOCAL HOST NAME
+# Host name given in the nagios server
+[HOST-NAME]
+hostname_in_nagios=NagiosServerHostName
+-----------------------------------------------------------------------
++
+If Host name is updated, restart the NSCA service using the following
+command:
++
+----------------------
+# service nsca restart
+----------------------
+
+*Troubleshooting NRPE Configuration Issues.*
+
+* *CHECK_NRPE: Error - Could Not Complete SSL Handshake*
++
+This error occurs if the IP address of the Nagios server is not defined
+in the `nrpe.cfg` file of the {{ book.productTitle }} node. To fix this
+issue, follow the steps given below:
+1.  Add the Nagios server IP address in `/etc/nagios/nrpe.cfg` file in
+the allowed_hosts line as shown below:
++
+---------------------------------------
+allowed_hosts=127.0.0.1, NagiosServerIP
+---------------------------------------
++
+The allowed_hosts is the list of IP addresses which can execute NRPE
+commands.
+2.  Save the `nrpe.cfg` file and restart NRPE service using the
+following command:
++
+----------------------
+# service nrpe restart
+----------------------
+* *CHECK_NRPE: Socket Timeout After n Seconds*
++
+To resolve this issue perform the steps given below:
++
+*On Nagios Server:*
++
+The default timeout value for the NRPE calls is 10 seconds and if the
+server does not respond within 10 seconds, Nagios Server GUI displays an
+error that the NRPE call has timed out in 10 seconds. To fix this issue,
+change the timeout value for NRPE calls by modifying the command
+definition configuration files.
+1.  Changing the NRPE timeout for services which directly invoke
+__check_nrpe__.
++
+For the services which directly invoke _check_nrpe_
+(check_disk_and_inode, check_cpu_multicore, and check_memory), modify
+the command definition configuration file
+`/etc/nagios/gluster/gluster-commands.cfg` by adding _-t Time in
+Seconds_ as shown below:
++
+------------------------------------------------------------------------------------------------
+define command {
+       command_name check_disk_and_inode
+       command_line $USER1$/check_nrpe -H $HOSTADDRESS$ -c check_disk_and_inode -t TimeInSeconds
+}
+------------------------------------------------------------------------------------------------
+2.  Changing the NRPE timeout for the services in `nagios-server-addons`
+package which invoke NRPE call through code.
++
+The services which invoke
+`/usr/lib64/nagios/plugins/gluster/check_vol_server.py`
+(check_vol_utilization, check_vol_status, check_vol_quota_status,
+check_vol_heal_status, and check_vol_georep_status) make NRPE call to
+the {{ book.productTitle }} nodes for the details through code. To
+change the timeout for the NRPE calls, modify the command definition
+configuration file `/etc/nagios/gluster/gluster-commands.cfg` by adding
+_-t No of seconds_ as shown below:
++
+------------------------------------------------------------------------------------------------------------------------
+define command {
+      command_name check_vol_utilization
+      command_line $USER1$/gluster/check_vol_server.py $ARG1$ $ARG2$ -w $ARG3$ -c $ARG4$ -o utilization -t TimeInSeconds
+}
+------------------------------------------------------------------------------------------------------------------------
++
+The auto configuration service `gluster_auto_discovery` makes NRPE calls
+for the configuration details from the {{ book.productTitle }} nodes. To
+change the NRPE timeout value for the auto configuration service, modify
+the command definition configuration file
+`/etc/nagios/gluster/gluster-commands.cfg` by adding _-t TimeInSeconds_
+as shown below:
++
+-----------------------------------------------------------------------------------------------------------------------------------
+define command{
+        command_name    gluster_auto_discovery
+        command_line    sudo $USER1$/gluster/configure-gluster-nagios.py -H $ARG1$ -c $HOSTNAME$ -m auto -n $ARG2$ -t TimeInSeconds
+}
+-----------------------------------------------------------------------------------------------------------------------------------
+3.  Restart Nagios service using the following command:
++
+------------------------
+# service nagios restart
+------------------------
++
+*On {{ book.productTitle }} node:*
+1.  Add the Nagios server IP address as described in _CHECK_NRPE: Error
+- Could Not Complete SSL Handshake_ section in Troubleshooting NRPE
+Configuration Issues section.
+2.  Edit the `nrpe.cfg` file using the following command:
++
+-------------------------
+# vi /etc/nagios/nrpe.cfg
+-------------------------
+3.  Search for the `command_timeout` and `connection_timeout` settings
+and change the value. The command_timeout value must be greater than or
+equal to the timeout value set in Nagios server.
++
+The timeout on checks can be set as _connection_timeout=300_ and the
+_command_timeout=60_ seconds.
+4.  Restart the NRPE service using the following command:
++
+----------------------
+# service nrpe restart
+----------------------
+* *Check the NRPE Service Status*
++
+This error occurs if the NRPE service is not running. To resolve this
+issue perform the steps given below:
+1.  Log in as root to the {{ book.productTitle }} node and run the
+following command to verify the status of NRPE service:
++
+---------------------
+# service nrpe status
+---------------------
+2.  If NRPE is not running, start the service using the following
+command:
++
+--------------------
+# service nrpe start
+--------------------
+* *Check Firewall and Port Settings*
++
+This error is associated with firewalls and ports. The timeout error is
+displayed if the NRPE traffic is not traversing a firewall, or if port
+_5666_ is not open on the {{ book.productTitle }} node.
++
+Ensure that port 5666 is open on the {{ book.productTitle }} node.
+1.  Run `check_nrpe` command from the Nagios server to verify if the
+port is open and if NRPE is running on the {{ book.productTitle }} Node
+.
+2.  Log into the Nagios server as root and run the following command:
++
+-------------------------------------------------------------
+# /usr/lib64/nagios/plugins/check_nrpe -H RedHatStorageNodeIP
+-------------------------------------------------------------
+3.  The output is displayed as given below:
++
+----------
+NRPE v2.14
+----------
++
+If not, ensure the that port 5666 is opened on the {{ book.productTitle }}
+node.
+1.  Run the following command on the {{ book.productTitle }} node as
+root to get a listing of the current iptables rules:
++
+-------------
+# iptables -L
+-------------
+2.  If the port is open, the following appears in your output.
++
+-------------------------------------------------------------------------
+ACCEPT     tcp  --  anywhere             anywhere            tcp dpt:5666
+-------------------------------------------------------------------------
+1.  Run the following command on the {{ book.productTitle }} node as
+root to get a listing of the current firewall rules:
++
+-------------------------------
+# firewall-cmd --list-all-zones
+-------------------------------
+2.  If the port is open, `5666/tcp` is listed beside `ports:` under one
+or more zones in your output.
+* If the port is not open, add an iptables rule for the port.
+1.  To add iptables rule, edit the `iptables` file as shown below:
++
+----------------------------
+# vi /etc/sysconfig/iptables
+----------------------------
+2.  Add the following line in the file:
++
+------------------------------------------------------------------
+-A INPUT -m state --state NEW -m tcp -p tcp --dport 5666 -j ACCEPT
+------------------------------------------------------------------
+3.  Restart the iptables service using the following command:
++
+--------------------------
+# service iptables restart
+--------------------------
+4.  Save the file and restart the NRPE service:
++
+----------------------
+# service nrpe restart
+----------------------
+1.  Run the following commands to open the port:
++
+------------------------------------------------------------
+# firewall-cmd --zone=public --add-port=5666/tcp
+# firewall-cmd --zone=public --add-port=5666/tcp --permanent
+------------------------------------------------------------
+* *Checking Port 5666 From the Nagios Server with Telnet*
++
+Use telnet to verify the {{ book.productTitle }} node's ports. To verify
+the ports of the {{ book.productTitle }} node, perform the steps given
+below:
+1.  Log in as root on Nagios server.
+2.  Test the connection on port 5666 from the Nagios server to the
+{{ book.productTitle }} node using the following command:
++
+----------------------------------
+# telnet RedHatStorageNodeIP 5666 
+----------------------------------
+3.  The output displayed is similar to:
++
+-------------------------
+telnet 10.70.36.49 5666
+Trying 10.70.36.49...
+Connected to 10.70.36.49.
+Escape character is '^]'.
+-------------------------
+* *Connection Refused By Host*
++
+This error is due to port/firewall issues or incorrectly configured
+_allowed_hosts_ directives. See the sections _CHECK_NRPE: Error - Could
+Not Complete SSL Handshake_ and _CHECK_NRPE: Socket Timeout After n
+Seconds_ for troubleshooting steps.

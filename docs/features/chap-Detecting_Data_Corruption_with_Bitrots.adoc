@@ -1,0 +1,143 @@
+[[chap-Detecting_Data_Corruption]]
+= Detecting Data Corruption with BitRot
+
+BitRot detection is a technique used in {{ book.productTitle }} to
+identify when silent corruption of data has occurred. BitRot also helps
+to identify when a brick's data has been manipulated directly, without
+using FUSE, NFS or any other access protocols. BitRot detection is
+particularly useful when using JBOD, since JBOD does not provide other
+methods of determining when data on a disk has become corrupt.
+
+The `gluster volume bitrot` command scans all the bricks in a volume for
+BitRot issues in a process known as scrubbing. The process calculates
+the checksum for each file or object, and compares that checksum against
+the actual data of the file. When BitRot is detected in a file, that
+file is marked as corrupted, and the detected errors are logged in the
+following files:
+
+* /var/log/glusterfs/bitd.log
+* /var/log/glusterfs/scrub.log
+
+= Enabling and Disabling the BitRot daemon
+
+The BitRot daemon is disabled by default. In order to use or configure
+the daemon, you first need to enable it.
+
+`gluster volume bitrot VOLNAME enable`::
+  Enable the BitRot daemon for the specified volume.
+`gluster volume bitrot VOLNAME disable`::
+  Disable the BitRot daemon for the specified volume.
+
+= Modifying BitRot Detection Behavior
+
+Once the daemon is enabled, you can pause and resume the detection
+process, check its status, and modify how often or how quickly it runs.
+
+`gluster volume bitrot VOLNAME scrub pause`::
+  Pauses the scrubbing process on the specified volume. Note that this
+  does not stop the BitRot daemon; it stops the process that cycles
+  through the volume checking files.
+`gluster volume bitrot VOLNAME scrub resume`::
+  Resumes the scrubbing process on the specified volume. Note that this
+  does not start the BitRot daemon; it restarts the process that cycles
+  through the volume checking files.
+`gluster volume bitrot VOLNAME scrub status`::
+  This command prints a summary of scrub status on the specified volume,
+  including various configuration details and the location of the bitrot
+  and scrubber error logs for this volume. It also prints details each
+  node scanned for errors, along with identifiers for any corrupted
+  objects located.
+`gluster volume bitrot VOLNAME scrub-throttle rate`::
+  Because the BitRot daemon scrubs the entire file system, scrubbing can
+  have a severe performance impact. This command changes the rate at
+  which files and objects are verified. Valid rates are `lazy`,
+  `normal`, and `aggressive`. By default, the scrubber process is
+  started in `lazy` mode.
+`gluster volume bitrot VOLNAME scrub-frequency frequency`::
+  This command changes how often the scrub operation runs when the
+  BitRot daemon is enabled. Valid options are `daily`, `weekly`,
+  `biweekly`, and `monthly`.By default, the scrubber process is set to
+  run `biweekly`.
+
+= Restore a bad file
+
+When bad files are revealed by the scrubber, you can perform the
+following process to heal the file by recovering a copy from a replicate
+volume.
+
+_________________________________________________________________________________________________________________________________________________
+*Important*
+
+The following procedure is easier if GFID-to-path translation is
+enabled.
+
+Mount all volumes using the `-oaux-gfid-mount` mount option, and enable
+GFID-to-path translation on each volume by running the following
+command.
+
+-------------------------------------------
+# gluster volume set VOLNAME build-pgfid on
+-------------------------------------------
+
+Files created before this option was enabled must be looked up with the
+`find` command.
+_________________________________________________________________________________________________________________________________________________
+
+Check the output of the `scrub status` command to determine the
+identifiers of corrupted files.
+
+--------------------------------------------
+# gluster volume bitrot VOLNAME scrub status
+Volume name: VOLNAME
+...
+Node name: NODENAME
+...
+Error count: 3
+Corrupted objects:
+5f61ade8-49fb-4c37-af84-c95041ff4bf5
+e8561c6b-f881-499b-808b-7fa2bce190f7
+eff2433f-eae9-48ba-bdef-839603c9434c
+--------------------------------------------
+
+For files created after GFID-to-path translation was enabled, use the
+`getfattr` command to determine the path of the corrupted files.
+
+-------------------------------------------------
+# getfattr -n glusterfs.ancestry.path -e text
+/mnt/VOLNAME/.gfid/GFID
+...
+glusterfs.ancestry.path="/path/to/corrupted_file"
+-------------------------------------------------
+
+For files created before GFID-to-path translation was enabled, use the
+`find` command to determine the path of the corrupted file and the index
+file that match the identifying GFID.
+
+-----------------------------------------
+# find /rhgs/brick*/.glusterfs -name GFID
+/rhgs/brick1/.glusterfs/path/to/GFID
+-----------------------------------------
+
+-----------------------------------------------------------
+# find /rhgs -samefile /rhgs/brick1/.glusterfs/path/to/GFID
+/rhgs/brick1/.glusterfs/path/to/GFID
+/rhgs/brick1/path/to/corrupted_file
+-----------------------------------------------------------
+
+Delete the corrupted files from the path output by the `getfattr` or
+`find` command.
+
+Delete the GFID file from the `/rhgs/brickN/.glusterfs` directory.
+
+If you have client self-heal enabled, the file is healed the next time
+that you access it.
+
+If you do not have client self-heal enabled, you must manually heal the
+volume with the following command.
+
+-----------------------------
+# gluster volume heal VOLNAME
+-----------------------------
+
+The next time that the bitrot scrubber runs, this GFID is no longer
+listed (unless it has become corrupted again).

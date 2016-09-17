@@ -1,0 +1,14 @@
+{
+        "root": "./docs",
+        "title": "GlusterFS Administrator Guide",
+        "structure": {
+                "summary": "SUMMARY.adoc"
+        },
+
+        "variables": {
+                "productTitle": "GlusterFS",
+                "version": "mainline"
+        },
+        "plugins": ["theme-default", "-sharing", "-fontsettings"]
+}
+

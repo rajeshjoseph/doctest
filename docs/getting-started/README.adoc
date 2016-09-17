@@ -1,0 +1,5 @@
+= Summary
+
+* link:README.adoc[Getting Started]
+** link:chap-Platform_Introduction.adoc[Overview]
+** link:chap-Getting_Started_with_RHGS.adoc[Getting Started with Gluster]

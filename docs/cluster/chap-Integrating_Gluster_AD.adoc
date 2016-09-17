@@ -1,0 +1,558 @@
+[[chap-Integrating_RHGS_AD]]
+= Integrating {{ book.productTitle }} with Windows Active Directory
+
+In this chapter, the tasks necessary for integrating {{ book.productTitle }}
+nodes into an existing Windows Active Directory domain are
+described. The following diagram describes the architecture of
+integrating {{ book.productTitle }} with Windows Active Directory.
+
+image:images/Gluster_Active_Directory_Integration.png[Active Directory Integration]
+
+This section assumes that you have an active directory domain installed.
+Before we go ahead with the configuration details, following is a list
+of data along with examples that will be used in the sections ahead.
+
+[cols=",",]
+|=======================================================================
+|Information |Example Value
+
+|DNS domain name / realm |addom.example.com
+
+|NetBIOS domain name |ADDOM
+
+|Name of administrative account |administrator
+
+|RHGS nodes |rhs-srv1.addom.example.com, 192.168.56.10
+rhs-srv2.addom.example.com, 192.168.56.11 rhs-srv3.addom.example.com,
+192.168.56.12
+
+|Netbios name of the cluster |RHS-SMB
+|=======================================================================
+
+= Prerequisites
+
+Before integration, the following steps have to be completed on an
+existing {{ book.productTitle }} environment:
+
+* *Name Resolution.*
++
+The {{ book.productTitle }} nodes must be able to resolve names from the
+AD domain via DNS. To verify the same you can use the following command:
++
+--------------------------
+host dc1.addom.example.com
+--------------------------
++
+where, `addom.example.com` is the AD domain and dc1 is the name of a
+domain controller.
++
+For example, the `/etc/resolv.conf` file in a static network
+configuration could look like this:
++
+---------------------------------------------
+domain addom.example.com
+search addom.example.com
+nameserver 10.11.12.1 # dc1.addom.example.com
+nameserver 10.11.12.2 # dc2.addom.example.com
+---------------------------------------------
++
+This example assumes that both the domain controllers are also the DNS
+servers of the domain.
+* *Kerberos Packages.*
++
+If you want to use the kerberos client utilities, like kinit and klist,
+then manually install the krb5-workstation using the following command:
++
+---------------------------------
+# yum -y install krb5-workstation
+---------------------------------
+* *Synchronize Time Service.*
++
+It is essential that the time service on each {{ book.productTitle }}
+node and the Windows Active Directory server are synchronized, else the
+Kerberos authentication may fail due to clock skew. In environments
+where time services are not reliable, the best practice is to configure
+the {{ book.productTitle }} nodes to synchronize time from the Windows
+Server.
++
+On each {{ book.productTitle }} node, edit the file /etc/ntp.conf so the time is
+synchronized from a known, reliable time service:
++
+-------------------------------------------------------
+# Enable writing of statistics records.
+#statistics clockstats cryptostats loopstats peerstats 
+server ntp1.addom.example.com
+server 10.11.12.3
+-------------------------------------------------------
++
+Activate the change on each {{ book.productTitle }} node by stopping the
+ntp daemon, updating the time, then starting the ntp daemon. Verify the
+change on both servers using the following commands:
++
+---------------------
+# service ntpd stop 
+ 
+# service ntpd start 
+---------------------
+* *Samba Packages.*
++
+Ensure to install the following Samba packages along with its
+dependencies:
+** CTDB
+** samba
+** samba-client
+** samba-winbind
+** samba-winbind-modules
+
+= Integration
+
+Integrating {{ book.productTitle }} Servers into an Active Directory
+domain involves the following series of steps:
+
+1.  Configure Authentication
+2.  Join Active Directory Domain
+3.  Verify/Test Active Directory and Services
+
+== Configure Authentication
+
+In order to join a cluster to the Active Directory domain, a couple of
+files have to be edited manually on all nodes.
+
+_________________________________________________________________________________________________________________________________________________________________________________________
+*Note*
+
+* Ensure that CTDB is configured before the active directory join. For
+more information see, Section 7.3.1 Setting up CTDB for Samba in the
+{{ book.productTitle }} Administration Guide.
+* It is recommended to take backups of the configuration and of Samba’s
+databases (local and ctdb) before making any changes.
+_________________________________________________________________________________________________________________________________________________________________________________________
+
+=== Basic Samba Configuration
+
+The Samba configuration file `/etc/samba/smb.conf` has to contain the
+relevant parameters for AD. Along with that, a few other settings are
+required in order to activate mapping of user and group IDs.
+
+The following example depicts the minimal Samba configuration for AD
+integration:
+
+--------------------------------------------------------------------------------------------
+[global]
+netbios name = RHS-SMB
+workgroup = ADDOM
+realm = addom.example.com
+security = ads
+clustering = yes
+idmap config * : range = 1000000-1999999
+idmap config * : backend = tdb
+
+# -----------------RHS Options -------------------------
+#
+# The following line includes RHS-specific configuration options. Be careful with this line.
+
+       include = /etc/samba/rhs-samba.conf
+
+#=================Share Definitions =====================
+--------------------------------------------------------------------------------------------
+
+______________________________________________________________________________________________________________________________________________________________________________________________________________
+*Warning*
+
+Make sure to edit the smb.conf file such that the above is the complete
+global section in order to prevent gluster mechanisms from changing the
+above settings when starting or stopping the ctdb lock volume.
+______________________________________________________________________________________________________________________________________________________________________________________________________________
+
+The `netbios` `name` consists of only one name which has to be the same
+name on all cluster nodes. Windows clients will only access the cluster
+via that name (either in this short form or as an FQDN). The individual
+node hostname (rhs-srv1, rhs-srv2, …) must not be used for the
+`netbios name` parameter.
+
+________________________________________________________________________________________________________________________________________________________________________________________________________________________
+*Note*
+
+* The idmap range is an example. This range should be chosen big enough
+to cover all objects that can possibly be mapped.
+* If you want to be able to use the individual host names to also access
+specific nodes, you can add them to the `netbios aliases` parameter of
+`smb.conf`.
+* In an AD environment, it is usually not required to run `nmbd`.
+However, if you have to run `nmbd`, then make sure to set the
+`cluster addresses` `smb.conf` option to the list of public IP addresses
+of the cluster.
+________________________________________________________________________________________________________________________________________________________________________________________________________________________
+
+=== Additional Configuration (Optional)
+
+It is also possible to further adapt Samba configuration to meet special
+needs or to specific properties of the AD environment. For example, the
+ID mapping scheme can be changed. Samba offers many methods for doing
+id-mapping. One popular way to set up ID mapping in an active directory
+environment is to use the `idmap_ad` module which reads the unix IDs
+from the AD's special unix attributes. This has to be configured by the
+AD domain's administrator before it can be used by Samba and winbind.
+
+In order for Samba to use `idmap_ad`, the AD domain admin has to prepare
+the AD domain for using the so called unix extensions and assign unix
+IDs to all users and groups that should be able to access the Samba
+server.
+
+Other possible idmap backends are `rid` and `autorid` and the default
+`tdb`. The `smb.conf` manpage and the manpages for the various idmap
+modules contain all the details.
+
+For example, following is an extended Samba configuration file to use
+the `idmap_ad` back-end for the ADDOM domain.
+
+--------------------------------------------------------------------------------------------
+[global]
+netbios name = RHS-SMB
+workgroup = ADDOM
+realm = addom.example.com
+security = ads
+clustering = yes
+idmap config * : backend = tdb
+idmap config * : range = 1000000-1999999
+idmap config ADDOM : backend = ad
+idmap config ADDOM : range = 3000000-3999999
+idmap config addom : schema mode = rfc2307
+winbind nss info = rfc2307
+
+# -------------------RHS Options -------------------------------
+#
+# The following line includes RHS-specific configuration options. Be careful with this line.
+
+       include = /etc/samba/rhs-samba.conf
+
+#===================Share Definitions =========================
+--------------------------------------------------------------------------------------------
+
+_________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+*Note*
+
+* The range for the idmap_ad configuration is prescribed by the AD
+configuration. This has to be obtained by AD administrator.
+* Ranges for different idmap configurations must not overlap.
+* The schema mode and the winbind nss info setting should have the same
+value. If the domain is at level 2003R2 or newer, then rfc2307 is the
+correct value. For older domains, additional values sfu and sfu20 are
+available. See the manual pages of idmap_ad and smb.conf for further
+details.
+_________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+
+The following table lists some of the other Samba options:
+
+.Samba Options
+[cols=",",]
+|=======================================================================
+|Parameter |Description
+
+|winbind enum users = no |Disable enumeration of users at the nsswitch
+level.
+
+|winbind enum groups = no |Disable enumeration of groups at the nsswitch
+level.
+
+|winbind separator = + |Change default separator from '\' to '+'
+
+|winbind nested groups = yes |Enable nesting of groups in Active
+Directory
+|=======================================================================
+
+=== Verifying the Samba Configuration
+
+Test the new configuration file using the testparm command. For example:
+
+-------------------------------------------------------------------------
+# testparm -s
+Load smb config files from /etc/samba/smb.conf
+rlimit_max: increasing rlimit_max (1024) to minimum Windows limit (16384)
+Loaded services file OK.
+
+Server role: ROLE_DOMAIN_MEMBER
+
+# Global parameters
+[global]
+    workgroup = ADDOM
+    realm = addom.example.com
+    netbios name = RHS-SMB
+    security = ADS
+    clustering = Yes
+    winbind nss info = rfc2307
+    idmap config addom : schema mode = rfc2307
+    idmap config addom : range = 3000000-3999999
+    idmap config addom : backend = ad
+    idmap config * : range = 1000000-1999999
+    idmap config * : backend = tdb
+-------------------------------------------------------------------------
+
+=== nsswitch Configuration
+
+Once the Samba configuration has been made, Samba has to be enabled to
+use the mapped users and groups from AD. This is achieved via the local
+Name Service Switch (NSS) that has to be made aware of the winbind. To
+use the winbind NSS module, edit the `/etc/nsswitch.conf` file. Make
+sure the file contains the winbind entries for the `passwd` and `group`
+databases. For example:
+
+---------------------
+...
+passwd: files winbind
+group: files winbind
+...
+---------------------
+
+This will enable the use of winbind and should make users and groups
+`visible` on the individual cluster node once Samba is joined to AD and
+winbind is started.
+
+== Join Active Directory Domain
+
+Prior to joining AD, CTDB must be started so that the machine account
+information can be stored in a database file that is available on all
+cluster nodes via CTDB. In addition to that, all other Samba services
+should be stopped. If passwordless ssh access for root has been
+configured between the nodes, you can use the onnode tool to run these
+commands on all nodes from a single node,
+
+---------------------------------
+# onnode all service ctdb start
+# onnode all service winbind stop
+# onnode all service smb stop
+---------------------------------
+
+________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+*Note*
+
+* If your configuration has CTDB managing Winbind and Samba, they can be
+temporarily disabled with the following commands (to be executed prior
+to the above stop commands) so as to prevent CTDB going into an
+unhealthy state when they are shut down:
++
+------------------------------------------
+# onnode all ctdb disablescript 49.winbind
+# onnode all ctdb disablescript 50.samba
+------------------------------------------
+* For some versions of RHGS, a bug in the selinux policy prevents 'ctdb
+disablescript SCRIPT' from succeeding. If this is the case, 'chmod -x
+/etc/ctdb/events.d/SCRIPT' can be executed as a workaround from a root
+shell.
+* Shutting down winbind and smb is primarily to prevent access to SMB
+services during this AD integration. These services may be left running
+but access to them should be prevented through some other means.
+________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+
+The join is initiated via the `net` utility from a single node:
+
+______________________________________________________________________________________________________________________________________________________________________________
+*Warning*
+
+The following step must be executed only on one cluster node and should
+not be repeated on other cluster nodes. CTDB makes sure that the whole
+cluster is joined by this step.
+______________________________________________________________________________________________________________________________________________________________________________
+
+----------------------------------------------------
+# net ads join -U Administrator
+Enter Administrator's password:
+Using short domain name -- ADDOM
+Joined 'RHS-SMB' to dns domain addom.example.com'
+Not doing automatic DNS update in a clustered setup.
+----------------------------------------------------
+
+Once the join is successful, the cluster ip addresses and the cluster
+netbios name should be made public in the network. For registering
+multiple public cluster IP addresses in the AD DNS server, the `net`
+utility can be used again:
+
+--------------------------------------------------------------
+# net ads dns register rhs-smb <PUBLIC IP 1> <PUBLIC IP 2> ...
+--------------------------------------------------------------
+
+This command will make sure the DNS name `rhs-smb` will resolve to the
+given public IP addresses. The DNS registrations use the cluster machine
+account for authentication in AD, which means this operation only can be
+done after the join has succeeded.
+
+Registering the NetBIOS name of the cluster is done by the nmbd service.
+In order to make sure that the nmbd instances on the hosts don’t
+overwrite each other’s registrations, the ‘cluster addresses’ smb.conf
+option should be set to the list of public addresses of the whole
+cluster.
+
+== Verify/Test Active Directory and Services
+
+When the join is successful, the Samba and the Winbind daemons can be
+started.
+
+Start nmdb using the following command:
+
+------------------------------
+# onnode all service nmb start
+------------------------------
+
+Start the winbind and smb services:
+
+----------------------------------
+# onnode all service winbind start
+# onnode all service smb start
+----------------------------------
+
+__________________________________________________________________________________________________________________________________________________________________________________________________________________________
+*Note*
+
+* If you previously disabled CTDB’s ability to manage Winbind and Samba
+they can be re-enabled with the following commands:
++
+-----------------------------------------
+# onnode all ctdb enablescript 50.samba
+# onnode all ctdb enablescript 49.winbind
+-----------------------------------------
+* For some versions of RHGS, a bug in the selinux polict prevents 'ctdb
+enablescript SCRIPT' from succeeding. If this is the case, 'chmod +x
+/etc/ctdb/events.d/SCRIPT' can be executed as a workaround from a root
+shell.
+* Ensure that the winbind starts after a reboot. This is achieved by
+adding ‘CTDB_MANAGES_WINBIND=yes’ to the /etc/sysconfig/ctdb file on all
+nodes.
+__________________________________________________________________________________________________________________________________________________________________________________________________________________________
+
+Execute the following verification steps:
+
+1.  *Verify the join by executing the following steps.*
++
+Verify the join to check if the created machine account can be used to
+authenticate to the AD LDAP server using the following command:
++
+------------------
+# net ads testjoin
+Join is OK
+------------------
+2.  Execute the following command to display the machine account’s LDAP
+object
++
+---------------------------------------------------------------------------------
+# net ads status -P
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: user
+objectClass: computer
+cn: rhs-smb
+distinguishedName: CN=rhs-smb,CN=Computers,DC=addom,DC=example,DC=com
+instanceType: 4
+whenCreated: 20150922013713.0Z
+whenChanged: 20151126111120.0Z
+displayName: RHS-SMB$
+uSNCreated: 221763
+uSNChanged: 324438
+name: rhs-smb
+objectGUID: a178177e-4aa4-4abc-9079-d1577e137723
+userAccountControl: 69632
+badPwdCount: 0
+codePage: 0
+countryCode: 0
+badPasswordTime: 130880426605312806
+lastLogoff: 0
+lastLogon: 130930100623392945
+localPolicyFlags: 0
+pwdLastSet: 130930098809021309
+primaryGroupID: 515
+objectSid: S-1-5-21-2562125317-1564930587-1029132327-1196
+accountExpires: 9223372036854775807
+logonCount: 1821
+sAMAccountName: rhs-smb$
+sAMAccountType: 805306369
+dNSHostName: rhs-smb.addom.example.com
+servicePrincipalName: HOST/rhs-smb.addom.example.com
+servicePrincipalName: HOST/RHS-SMB
+objectCategory: CN=Computer,CN=Schema,CN=Configuration,DC=addom,DC=example,DC=com
+isCriticalSystemObject: FALSE
+dSCorePropagationData: 16010101000000.0Z
+lastLogonTimestamp: 130929563322279307
+msDS-SupportedEncryptionTypes: 31
+---------------------------------------------------------------------------------
+3.  Execute the following command to display general information about
+the AD server:
++
+------------------------------------------
+# net ads info
+LDAP server: 10.11.12.1
+LDAP server name: dc1.addom.example.com
+Realm: ADDOM.EXAMPLE.COM
+Bind Path: dc=ADDOM,dc=EXAMPLE,dc=COM
+LDAP port: 389
+Server time: Thu, 26 Nov 2015 11:15:04 UTC
+KDC server: 10.11.12.1
+Server time offset: -26
+------------------------------------------
+4.  *Verify if winbind is operating correctly by executing the following
+steps.*
++
+Execute the following command to verify if winbindd can use the machine
+account for authentication to AD
++
+------------------------------------------------------------------
+# wbinfo -t
+checking the trust secret for domain ADDOM via RPC calls succeeded
+------------------------------------------------------------------
+5.  Execute the following command to resolve the given name to a Windows
+SID
++
+----------------------------------------------------------
+# wbinfo --name-to-sid 'ADDOM\Administrator'
+S-1-5-21-2562125317-1564930587-1029132327-500 SID_USER (1)
+----------------------------------------------------------
+6.  Execute the following command to verify authentication:
++
+----------------------------------------------------
+# wbinfo -a 'ADDOM\user'
+Enter ADDOM\user's password:
+plaintext password authentication succeeded
+Enter ADDOM\user's password:
+challenge/response password authentication succeeded
+----------------------------------------------------
++
+or,
++
+----------------------------------------------------
+# wbinfo -a 'ADDOM\user%password'
+plaintext password authentication succeeded
+challenge/response password authentication succeeded
+----------------------------------------------------
+7.  Execute the following command to verify if the id-mapping is working
+properly:
++
+------------------------------------
+# wbinfo --sid-to-uid <SID-OF-ADMIN>
+1000000
+------------------------------------
+8.  Execute the following command to verify if the winbind Name Service
+Switch module works correctly:
++
+---------------------------------------------------------------------------
+# getent passwd 'ADDOM\Administrator'
+ADDOM\administrator:*:1000000:1000004::/home/ADDOM/administrator:/bin/false
+---------------------------------------------------------------------------
+9.  Execute the following command to verify if samba can use winbind and
+the NSS module correctly:
++
+-----------------------------------------------------------
+# smbclient -L rhs-smb -U 'ADDOM\Administrator'
+Domain=[ADDOM] OS=[Windows 6.1] Server=[Samba 4.2.4]
+
+        Sharename       Type      Comment
+        ---------       ----      -------
+        IPC$            IPC       IPC Service (Samba 4.2.4)
+Domain=[ADDOM] OS=[Windows 6.1] Server=[Samba 4.2.4]
+
+        Server               Comment
+        ---------            -------
+        RHS-SMB         Samba 4.2.4
+
+        Workgroup            Master
+        ---------            -------
+        ADDOM             RHS-SMB
+-----------------------------------------------------------

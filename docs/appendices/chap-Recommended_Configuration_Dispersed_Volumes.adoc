@@ -1,0 +1,207 @@
+[[chap-Recommended-Configuration_Dispersed]]
+= Recommended Configurations - Dispersed Volume
+
+This chapter describes the recommended configurations, examples, and
+illustrations for Dispersed and Distributed Dispersed volumes.
+
+For a Distributed Dispersed volume, there will be multiple sets of
+bricks (subvolumes) that stores data with erasure coding. All the files
+are distributed over these sets of erasure coded subvolumes. In this
+scenario, even if a redundant number of bricks is lost from every
+dispersed subvolume, there is no data loss.
+
+For example, assume you have Distributed Dispersed volume of
+configuration 2 X (4 + 2). Here, you have two sets of dispersed
+subvolumes where the data is erasure coded between 6 bricks with 2
+bricks for redundancy. The files will be stored in one of these
+dispersed subvolumes. Therefore, even if we lose two bricks from each
+set, there is no data loss.
+
+*Brick Configurations.*
+
+The following table lists the brick layout details of multiple
+server/disk configurations for dispersed and distributed dispersed
+volumes.
+
+[[chap-Recommended-Configuration_Dispersed-Table_Configuraton]]
+.Brick Configurations for Dispersed and Distributed Dispersed Volumes
+[cols=",,,,,,,,,",options="header",]
+|=======================================================================
+|Redundancy Level |Supported Configurations |Bricks per Server per
+Subvolume |Node Loss |Max brick failure count within a subvolume
+|Compatible Server Node count |Increment Size (no. of nodes) |Min number
+of sub-volumes |Total Spindles |Tolerated HDD Failure Percentage
+|*12 HDD Chassis*
+
+|2 |4 + 2 |2 |1 |2 |3 |3 |6 |36 |33.33%
+
+|1 |2 |2 |6 |6 |12 |72 |33.33%
+
+|4 |8 + 4 |4 |1 |4 |3 |3 |3 |36 |33.33%
+
+|2 |2 |4 |6 |6 |6 |72 |33.33%
+
+|1 |4 |4 |12 |12 |12 |144 |33.33%
+
+|3 |8 + 3 |1-2 |1 |3 |6 |6 |6 |72 |25.00%
+
+|*24 HDD Chassis*
+
+|2 |4 + 2 |2 |1 |2 |3 |3 |12 |72 |33.33%
+
+|1 |2 |2 |6 |6 |24 |144 |33.33%
+
+|4 |8 + 4 |4 |1 |4 |3 |3 |6 |72 |33.33%
+
+|2 |2 |4 |6 |6 |12 |144 |33.33%
+
+|1 |4 |4 |12 |12 |24 |288 |33.33%
+
+|*36 HDD Chassis* |
+
+|2 |4 + 2 |2 |1 |2 |3 |3 |18 |108 |33.33%
+
+|1 |2 |2 |6 |6 |36 |216 |33.33%
+
+|4 |8 + 4 |4 |1 |4 |3 |3 |9 |108 |33.33%
+
+|2 |2 |4 |6 |6 |18 |216 |33.33%
+
+|1 |4 |4 |12 |12 |36 |432 |33.33%
+
+|3 |8 + 3 |1-2 |1 |3 |6 |6 |19 |216 |26.39%
+
+|*60 HDD Chassis* |
+
+|2 |4 + 2 |2 |1 |2 |3 |3 |30 |180 |33.33%
+
+|1 |2 |2 |6 |6 |60 |360 |33.33%
+
+|4 |8 + 4 |4 |1 |4 |3 |3 |15 |180 |33.33%
+
+|2 |2 |4 |6 |6 |30 |360 |33.33%
+
+|1 |4 |4 |12 |12 |60 |720 |33.33%
+
+|3 |8 + 3 |1-2 |1 |3 |6 |6 |32 |360 |26.67%
+|=======================================================================
+
+*Example 1 - Dispersed 4+2 configuration on three servers.*
+
+This example describes the configuration of three servers with each
+server attached with 12 HDD chassis to create a dispersed volume. In
+this example, each HDD is assumed as a single brick.
+
+This example's brick configuration is explained in the row 1 of
+<<chap-Recommended-Configuration_Dispersed-Table_Configuraton>>.
+
+With this server-to-spindle ratio, 36 disks/spindles are allocated for
+the dispersed volume configuration. For example, to create a simple 4+2
+dispersed volume using 6 spindles from the total disk pool, run the
+following command:
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# gluster volume create test_vol disperse-data 4 redundancy 2 transport tcp server1:/rhgs/brick1 server1:/rhgs/brick2 server2:/rhgs/brick3 server2:/rhgs/brick4 server3:/rhgs/brick5 server3:/rhgs/brick6
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Run the `gluster volume info` command to view the volume information.
+
+---------------------------------
+# gluster volume info test-volume
+Volume Name: test-volume
+Type: Disperse
+Status: Started
+Number of Bricks: 1 x (4 + 2) = 6
+Transport-type: tcp
+Bricks:
+Brick1: server1:/rhgs/brick1     
+Brick2: server1:/rhgs/brick2
+Brick3: server2:/rhgs/brick3
+Brick4: server2:/rhgs/brick4
+Brick5: server3:/rhgs/brick5
+Brick6: server3:/rhgs/brick6
+---------------------------------
+
+Additionally, you can convert the dispersed volume to a distributed
+dispersed volume in increments of 4+2. Add six bricks from the disk pool
+using the following command:
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# gluster volume add-brick test_vol server1:/rhgs/brick7 server1:/rhgs/brick8 server2:/rhgs/brick9 server2:/rhgs/brick10 server3:/rhgs/brick11 server3:/rhgs/brick12
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Run the `gluster volume info` command to view distributed dispersed
+volume information.
+
+----------------------------------
+# gluster volume info test-volume
+Volume Name: test-volume
+Type: Distributed-Disperse
+Status: Started
+Number of Bricks: 2 x (4 + 2) = 12
+Transport-type: tcp
+Bricks:
+Brick1: server1:/rhgs/brick1     
+Brick2: server1:/rhgs/brick2
+Brick3: server2:/rhgs/brick3
+Brick4: server2:/rhgs/brick4
+Brick5: server3:/rhgs/brick5
+Brick6: server3:/rhgs/brick6
+Brick7: server1:/rhgs/brick7     
+Brick8: server1:/rhgs/brick8
+Brick9: server2:/rhgs/brick9
+Brick10: server2:/rhgs/brick10
+Brick11: server3:/rhgs/brick11
+Brick12: server3:/rhgs/brick12
+----------------------------------
+
+Using this configuration example, you can create configuration
+combinations of 6 X (4 +2 ) distributed dispersed volumes. This example
+configuration has tolerance up to 12 brick failures.
+
+*Example 2 - Dispersed 8+4 configuration on three servers.*
+
+The following diagram illustrates a dispersed 8+4 configuration on three
+servers as explained in the row 3 of <<chap-Recommended-Configuration_Dispersed, Recommended Configurations - Dispersed Volume>>
+The command to create the disperse volume for this configuration:.
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# gluster volume create test_vol disperse-data 8 redundancy 4 transport tcp server1:/rhgs/brick1 server1:/rhgs/brick2 server1:/rhgs/brick3 server1:/rhgs/brick4 server2:/rhgs/brick1 server2:/rhgs/brick2 server2:/rhgs/brick3 server2:/rhgs/brick4 server3:/rhgs/brick1 server3:/rhgs/brick2 server3:/rhgs/brick3 server3:/rhgs/brick4 server1:/rhgs/brick5 server1:/rhgs/brick6 server1:/rhgs/brick7 server1:/rhgs/brick8 server2:/rhgs/brick5 server2:/rhgs/brick6 server2:/rhgs/brick7 server2:/rhgs/brick8  server3:/rhgs/brick5 server3:/rhgs/brick6 server3:/rhgs/brick7 server3:/rhgs/brick8 server1:/rhgs/brick9 server1:/rhgs/brick10 server1:/rhgs/brick11 server1:/rhgs/brick12 server2:/rhgs/brick9 server2:/rhgs/brick10 server2:/rhgs/brick11 server2:/rhgs/brick12 server3:/rhgs/brick9 server3:/rhgs/brick10 server3:/rhgs/brick11 server3:/rhgs/brick12
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+image:images/recommended_configuraiton_EC.png[Example Configuration of
+8+4 Dispersed Volume Configuration]
+
+In this example, there are `m` bricks (refer to section
+<<../architecture/chap-Gluster_Volumes.adoc#chap-Gluster_Volumes-Creating_Dispersed_Volumes_1,
+Creating Dispersed Volumes>>
+for information on `n = k+m` equation) from a dispersed subvolume on each
+server. If you add more than` m` bricks from a dispersed subvolume on
+server `S,` and if the server `S` goes down, data will be unavailable.
+
+If `S` (a single column in the above diagram) goes down, there is no
+data loss, but if there is any additional hardware failure, either
+another node going down or a storage device failure, there would be
+immediate data loss.
+
+*Example 3 - Dispersed 4+2 configuration on six servers.*
+
+The following diagram illustrates dispersed 4+2 configuration on six
+servers and each server with 12-disk-per-server configuration as
+explained in the row 2 of <<chap-Recommended-Configuration_Dispersed-Table_Configuraton>>.
+The command to create the disperse volume for this configuration:
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# gluster volume create test_vol disperse-data 4 redundancy 2 transport tcp server1:/rhgs/brick1 server2:/rhgs/brick1 server3:/rhgs/brick1 server4:/rhgs/brick1 server5:/rhgs/brick1 server6:/rhgs/brick1server1:/rhgs/brick2 server2:/rhgs/brick2 server3:/rhgs/brick2 server4:/rhgs/brick2 server5:/rhgs/brick2 server6:/rhgs/brick2 server1:/rhgs/brick3 server2:/rhgs/brick3 server3:/rhgs/brick3 server4:/rhgs/brick3 server5:/rhgs/brick3 server6:/rhgs/brick3 server1:/rhgs/brick4 server2:/rhgs/brick4 server3:/rhgs/brick4 server4:/rhgs/brick4 server5:/rhgs/brick4 server6:/rhgs/brick4 server1:/rhgs/brick5 server2:/rhgs/brick5 server3:/rhgs/brick5 server4:/rhgs/brick5 server5:/rhgs/brick5 server6:/rhgs/brick5 server1:/rhgs/brick6 server2:/rhgs/brick6 server3:/rhgs/brick6 server4:/rhgs/brick6 server5:/rhgs/brick6 server6:/rhgs/brick6 server1:/rhgs/brick7 server2:/rhgs/brick7 server3:/rhgs/brick7 server4:/rhgs/brick7 server5:/rhgs/brick7 server6:/rhgs/brick7 server1:/rhgs/brick8 server2:/rhgs/brick8 server3:/rhgs/brick8 server4:/rhgs/brick8 server5:/rhgs/brick8 server6:/rhgs/brick8 server1:/rhgs/brick9 server2:/rhgs/brick9 server3:/rhgs/brick9 server4:/rhgs/brick9 server5:/rhgs/brick9 server6:/rhgs/brick9 server1:/rhgs/brick10 server2:/rhgs/brick10 server3:/rhgs/brick10 server4:/rhgs/brick10 server5:/rhgs/brick10 server6:/rhgs/brick10 server1:/rhgs/brick11 server2:/rhgs/brick11 server3:/rhgs/brick11 server4:/rhgs/brick11 server5:/rhgs/brick11 server6:/rhgs/brick11 server1:/rhgs/brick12 server2:/rhgs/brick12 server3:/rhgs/brick12 server4:/rhgs/brick12 server5:/rhgs/brick12 server6:/rhgs/brick12
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+image:images/tecommended_configuration.png[Example Configuration of 4+2
+Dispersed Volume Configuration]
+
+*Redundancy Comparison.*
+
+The following chart illustrates the redundancy comparison of all
+supported dispersed volume configurations.
+
+image:images/Dispersed_Volume_Resilience.png[Illustration of the
+redundancy comparison]

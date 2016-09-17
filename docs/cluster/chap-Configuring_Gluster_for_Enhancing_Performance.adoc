@@ -1,0 +1,624 @@
+[[chap-Configuring_Gluster_for_Enhancing_Performance]]
+= Configuring {{ book.productTitle }} for Enhancing Performance
+
+This chapter provides information on configuring {{ book.productTitle }}
+and explains clear and simple activities that can improve system
+performance. A script that encodes the best-practice recommendations in
+this section is located at
+`/usr/lib/glusterfs/.unsupported/rhs-system-init.sh`. You can refer the
+same for more information.
+
+[[sect-Disk_Configuration]]
+= Disk Configuration
+
+{{ book.productTitle }} includes support for JBOD (Just a Bunch of
+Disks). In the JBOD configuration, a single physical disk serves as
+storage for a {{ book.productTitle }} brick. JBOD is supported with
+three-way replication. {{ book.productTitle }} in JBOD configuration is
+recommended for highly multi-threaded workloads with sequential reads to
+large files. For such workloads, JBOD results in more efficient use of
+disk bandwidth by reducing disk head movement from concurrent accesses.
+For other workloads, two-way replication with hardware RAID is
+recommended.
+
+[[Hardware_RAID]]
+== Hardware RAID
+
+The RAID levels that are most commonly recommended are RAID 6 and RAID
+10. RAID 6 provides better space efficiency, good read performance and
+good performance for sequential writes to large files.
+
+When configured across 12 disks, RAID 6 can provide ~40% more storage
+space in comparison to RAID 10, which has a 50% reduction in capacity.
+However, RAID 6 performance for small file writes and random writes
+tends to be lower than RAID 10. If the workload is strictly small files,
+then RAID 10 is the optimal configuration.
+
+An important parameter in hardware RAID configuration is the stripe unit
+size. With thin provisioned disks, the choice of RAID stripe unit size
+is closely related to the choice of thin-provisioning chunk size.
+
+For RAID 10, a stripe unit size of 256 KiB is recommended.
+
+For RAID 6, the stripe unit size must be chosen such that the full
+stripe size (stripe unit * number of data disks) is between 1 MiB and
+2 MiB, preferably in the lower end of the range. Hardware RAID
+controllers usually allow stripe unit sizes that are a power of 2. For
+RAID 6 with 12 disks (10 data disks), the recommended stripe unit size
+is 128KiB.
+
+[[JBOD]]
+== JBOD
+
+Support for JBOD has the following limitations:
+
+* Each server in the JBOD configuration can have a maximum of 24 disks.
+* Three-way replication must be used when using JBOD.
+
+In the JBOD configuration, physical disks are not aggregated into RAID
+devices, but are visible as separate disks to the operating system. This
+simplifies system configuration by not requiring a hardware RAID
+controller.
+
+If disks on the system are connected through a hardware RAID controller,
+refer to the RAID controller documentation on how to create a JBOD
+configuration; typically, JBOD is realized by exposing `raw` drives to
+the operating system using a `pass-through` mode.
+
+[[Brick_Configuration]]
+= Brick Configuration
+
+Format bricks using the following configurations to enhance performance:
+
+The steps for creating a brick from a physical device is listed below.
+An outline of steps for creating multiple bricks on a physical device is
+listed as Example - Creating multiple bricks on a physical device below.
+
+* *Creating the Physical Volume*
++
+The `pvcreate` command is used to create the physical volume. The
+Logical Volume Manager can use a portion of the physical volume for
+storing its metadata while the rest is used as the data portion.Align
+the I/O at the Logical Volume Manager (LVM) layer using
+`--dataalignment` option while creating the physical volume.
++
+The command is used in the following format:
++
+---------------------------------------------
+pvcreate --dataalignment alignment_value disk
+---------------------------------------------
++
+For JBOD, use an alignment value of `256K`.
++
+In case of hardware RAID, the alignment_value should be obtained by
+multiplying the RAID stripe unit size with the number of data disks. If
+12 disks are used in a RAID 6 configuration, the number of data disks is
+10; on the other hand, if 12 disks are used in a RAID 10 configuration,
+the number of data disks is 6.
++
+For example, the following command is appropriate for 12 disks in a RAID
+6 configuration with a stripe unit size of 128 KiB:
++
+-------------------------------------
+# pvcreate --dataalignment 1280k disk
+-------------------------------------
++
+The following command is appropriate for 12 disks in a RAID 10
+configuration with a stripe unit size of 256 KiB:
++
+-------------------------------------
+# pvcreate --dataalignment 1536k disk
+-------------------------------------
++
+To view the previously configured physical volume settings for
+`--dataalignment`, run the following command:
++
+------------------------------------------------
+# pvs -o +pe_start disk
+  PV         VG   Fmt  Attr PSize PFree 1st PE 
+  /dev/sdb        lvm2 a--  9.09t 9.09t   1.25m 
+------------------------------------------------
+* *Creating the Volume Group*
++
+The volume group is created using the `vgcreate` command.
++
+For hardware RAID, in order to ensure that logical volumes created in
+the volume group are aligned with the underlying RAID geometry, it is
+important to use the `-- physicalextentsize` option. Execute the
+`vgcreate` command in the following format:
++
+--------------------------------------------------------------------
+# vgcreate --physicalextentsize extent_size VOLGROUP physical_volume
+--------------------------------------------------------------------
++
+The extent_size should be obtained by multiplying the RAID stripe unit
+size with the number of data disks. If 12 disks are used in a RAID 6
+configuration, the number of data disks is 10; on the other hand, if 12
+disks are used in a RAID 10 configuration, the number of data disks is
+6.
++
+For example, run the following command for RAID-6 storage with a stripe
+unit size of 128 KB, and 12 disks (10 data disks):
++
+--------------------------------------------------------------
+# vgcreate --physicalextentsize 1280k VOLGROUP physical_volume
+--------------------------------------------------------------
++
+In the case of JBOD, use the `vgcreate` command in the following format:
++
+-----------------------------------
+# vgcreate VOLGROUP physical_volume
+-----------------------------------
+* *Creating the Thin Pool*
++
+A thin pool provides a common pool of storage for thin logical volumes
+(LVs) and their snapshot volumes, if any.
++
+Execute the following command to create a thin-pool:
++
+----------------------------------------------------------------------------------------------------------------------------
+# lvcreate --thinpool VOLGROUP/thin_pool --size <pool_size> --chunksize <chunk_size> --poolmetadatasize <meta_size> --zero n
+----------------------------------------------------------------------------------------------------------------------------
++
+poolmetadatasize::
+  Internally, a thin pool contains a separate metadata device that is
+  used to track the (dynamically) allocated regions of the thin LVs and
+  snapshots. The `poolmetadatasize` option in the above command refers
+  to the size of the pool meta data device.
+  +
+  The maximum possible size for a metadata LV is 16 GiB. {{ book.productTitle }}
+  recommends creating the metadata device of the maximum
+  supported size. You can allocate less than the maximum if space is a
+  concern, but in this case you should allocate a minimum of 0.5% of the
+  pool size.
+chunksize::
+  An important parameter to be specified while creating a thin pool is
+  the chunk size,which is the unit of allocation. For good performance,
+  the chunk size for the thin pool and the parameters of the underlying
+  hardware RAID storage should be chosen so that they work well
+  together.
+  +
+  For RAID-6 storage, the striping parameters should be chosen so that
+  the full stripe size (stripe_unit size * number of data disks) is
+  between 1 MiB and 2 MiB, preferably in the low end of the range. The
+  thin pool chunk size should be chosen to match the RAID 6 full stripe
+  size. Matching the chunk size to the full stripe size aligns thin pool
+  allocations with RAID 6 stripes, which can lead to better performance.
+  Limiting the chunk size to below 2 MiB helps reduce performance
+  problems due to excessive copy-on-write when snapshots are used.
+  +
+  For example, for RAID 6 with 12 disks (10 data disks), stripe unit
+  size should be chosen as 128 KiB. This leads to a full stripe size of
+  1280 KiB (1.25 MiB). The thin pool should then be created with the
+  chunk size of 1280 KiB.
+  +
+  For RAID 10 storage, the preferred stripe unit size is 256 KiB. This
+  can also serve as the thin pool chunk size. Note that RAID 10 is
+  recommended when the workload has a large proportion of small file
+  writes or random writes. In this case, a small thin pool chunk size is
+  more appropriate, as it reduces copy-on-write overhead with snapshots.
+  +
+  For JBOD, use a thin pool chunk size of 256 KiB.
+block zeroing::
+  By default, the newly provisioned chunks in a thin pool are zeroed to
+  prevent data leaking between different block devices. In the case of
+  {{ book.productTitle }}, where data is accessed via a file system,
+  this option can be turned off for better performance with the
+  `--zero n` option. Note that `n` does not need to be replaced.
+  +
+  The following example shows how to create the thin pool:
+  +
+-----------------------------------------------------------------------------------------------------
+lvcreate --thinpool VOLGROUP/thin_pool --size 800g --chunksize 1280k --poolmetadatasize 16G --zero n 
+-----------------------------------------------------------------------------------------------------
+* *Creating a Thin Logical Volume*
++
+After the thin pool has been created as mentioned above, a thinly
+provisioned logical volume can be created in the thin pool to serve as
+storage for a brick of a {{ book.productTitle }} volume.
++
+-------------------------------------------------------------------------------------
+            # lvcreate --thin --name LV_name --virtualsize LV_size VOLGROUP/thin_pool
+-------------------------------------------------------------------------------------
+* *Example - Creating multiple bricks on a physical device*
++
+The steps above (LVM Layer) cover the case where a single brick is being
+created on a physical device. This example shows how to adapt these
+steps when multiple bricks need to be created on a physical device.
++
+___________________________________________________________________________________________________________________________________________
+*Note*
+
+In this following steps, we are assuming the following:
+
+** Two bricks must be created on the same physical device
+** One brick must be of size 4 TiB and the other is 2 TiB
+** The device is `/dev/sdb`, and is a RAID-6 device with 12 disks
+** The 12-disk RAID-6 device has been created according to the
+recommendations in this chapter, that is, with a stripe unit size of 128
+KiB
+___________________________________________________________________________________________________________________________________________
+1.  Create a single physical volume using pvcreate
++
+-----------------------------------------
+# pvcreate --dataalignment 1280k /dev/sdb
+-----------------------------------------
+2.  Create a single volume group on the device
++
+--------------------------------------------------
+# vgcreate --physicalextentsize 1280k vg1 /dev/sdb
+--------------------------------------------------
+3.  Create a separate thin pool for each brick using the following
+commands:
++
+-------------------------------------------------------------------------------------------------
+# lvcreate --thinpool vg1/thin_pool_1 --size 4T --chunksize 1280K --poolmetadatasize 16G --zero n
+-------------------------------------------------------------------------------------------------
++
+-------------------------------------------------------------------------------------------------
+# lvcreate --thinpool vg1/thin_pool_2 --size 2T --chunksize 1280K --poolmetadatasize 16G --zero n
+-------------------------------------------------------------------------------------------------
++
+In the examples above, the size of each thin pool is chosen to be the
+same as the size of the brick that will be created in it. With thin
+provisioning, there are many possible ways of managing space, and these
+options are not discussed in this chapter.
+4.  Create a thin logical volume for each brick
++
+-------------------------------------------------------------
+# lvcreate --thin --name lv1 --virtualsize 4T vg1/thin_pool_1
+-------------------------------------------------------------
++
+-------------------------------------------------------------
+# lvcreate --thin --name lv2 --virtualsize 2T vg1/thin_pool_2
+-------------------------------------------------------------
+5.  Follow the XFS Recommendations (next step) in this chapter for
+creating and mounting filesystems for each of the thin logical volumes
++
+-----------------------------
+mkfs.xfs options /dev/vg1/lv1
+-----------------------------
++
+-----------------------------
+mkfs.xfs options /dev/vg1/lv2
+-----------------------------
++
+----------------------------------------
+mount options /dev/vg1/lv1 mount_point_1
+----------------------------------------
++
+----------------------------------------
+mount options /dev/vg1/lv2 mount_point_2
+----------------------------------------
+
+* *XFS Inode Size*
++
+As {{ book.productTitle }} makes extensive use of extended attributes,
+an XFS inode size of 512 bytes works better with {{ book.productTitle }}
+than the default XFS inode size of 256 bytes. So, inode size for XFS
+must be set to 512 bytes while formatting the {{ book.productTitle }}
+bricks. To set the inode size, you have to use -i size option with the
+`mkfs.xfs` command as shown in the following Logical Block Size for the
+Directory section.
+* *XFS RAID Alignment*
++
+When creating an XFS file system, you can explicitly specify the
+striping parameters of the underlying storage in the following format:
++
+---------------------------------------------------------------------------------------
+mkfs.xfs other_options -d su=stripe_unit_size,sw=stripe_width_in_number_of_disks device
+---------------------------------------------------------------------------------------
++
+For RAID 6, ensure that I/O is aligned at the file system layer by
+providing the striping parameters. For RAID 6 storage with 12 disks, if
+the recommendations above have been followed, the values must be as
+following:
++
+------------------------------------------------
+# mkfs.xfs other_options -d su=128k,sw=10 device
+------------------------------------------------
++
+For RAID 10 and JBOD, the `-d su=<>,sw=<>` option can be omitted. By
+default, XFS will use the thin-p chunk size and other parameters to make
+layout decisions.
+* *Logical Block Size for the Directory*
++
+An XFS file system allows to select a logical block size for the file
+system directory that is greater than the logical block size of the file
+system. Increasing the logical block size for the directories from the
+default 4 K, decreases the directory I/O, which in turn improves the
+performance of directory operations. To set the block size, you need to
+use `-n size` option with the `mkfs.xfs` command as shown in the
+following example output.
++
+Following is the example output of RAID 6 configuration along with inode
+and block size options:
++
+----------------------------------------------------------------------------------
+# mkfs.xfs -f -i size=512 -n size=8192 -d su=128k,sw=10 logical volume
+meta-data=/dev/mapper/gluster-brick1 isize=512    agcount=32, agsize=37748736 blks
+         =    sectsz=512   attr=2, projid32bit=0
+data     =     bsize=4096   blocks=1207959552, imaxpct=5
+         =    sunit=32     swidth=320 blks
+naming   = version 2   bsize=8192   ascii-ci=0
+log      =internal log   bsize=4096   blocks=521728, version=2
+         =    sectsz=512   sunit=32 blks, lazy-count=1
+realtime =none    extsz=4096   blocks=0, rtextents=0
+----------------------------------------------------------------------------------
+* *Allocation Strategy*
++
+inode32 and inode64 are two most common allocation strategies for XFS.
+With inode32 allocation strategy, XFS places all the inodes in the first
+1 TiB of disk. With larger disk, all the inodes would be stuck in first
+1 TiB. inode32 allocation strategy is used by default.
++
+With inode64 mount option inodes would be replaced near to the data
+which would be minimize the disk seeks.
++
+To set the allocation strategy to inode64 when file system is being
+mounted, you need to use `-o inode64 `option with the `mount` command as
+shown in the following *Access Time* section.
+* *Access Time*
++
+If the application does not require to update the access time on files,
+than file system must always be mounted with `noatime` mount option. For
+example:
++
+----------------------------------------------------------------
+# mount -t xfs -o inode64,noatime <logical volume> <mount point>
+----------------------------------------------------------------
++
+This optimization improves performance of small-file reads by avoiding
+updates to the XFS inodes when files are read.
++
+-------------------------------------------------------------
+/etc/fstab entry for option E + F
+ <logical volume> <mount point>xfs     inode64,noatime   0 0 
+-------------------------------------------------------------
+* *Allocation groups*
++
+Each XFS file system is partitioned into regions called allocation
+groups. Allocation groups are similar to the block groups in ext3, but
+allocation groups are much larger than block groups and are used for
+scalability and parallelism rather than disk locality. The default
+allocation for an allocation group is 1 TiB.
++
+Allocation group count must be large enough to sustain the concurrent
+allocation workload. In most of the cases allocation group count chosen
+by `mkfs.xfs` command would give the optimal performance. Do not change
+the allocation group count chosen by `mkfs.xfs`, while formatting the
+file system.
+* *Percentage of space allocation to inodes*
++
+If the workload is very small files (average file size is less than 10
+KB ), then it is recommended to set `maxpct` value to `10`, while
+formatting the file system.
+
+{% if book.productTitle != "GlusterFS" %}
+A _tuned_ profile is designed to improve performance for a specific use
+case by tuning system parameters appropriately. {{ book.productTitle }}
+includes _tuned_ profiles tailored for its workloads. These profiles are
+available in both Red Hat Enterprise Linux 6 and Red Hat Enterprise
+Linux 7.
+
+.Recommended Profiles for Different Workloads
+[cols=",",options="header",]
+|==========================================================
+|Workload |Profile Name
+|Large-file, sequential I/O workloads |`rhgs-sequential-io`
+|Small-file workloads |`rhgs-random-io`
+|Random I/O workloads |`rhgs-random-io`
+|==========================================================
+
+Earlier versions of {{ book.productTitle }} on Red Hat Enterprise Linux
+6 recommended tuned profiles `rhs-high-throughput` and
+`rhs-virtualization`. These profiles are still available on Red Hat
+Enterprise Linux 6. However, switching to the new profiles is
+recommended.
+
+To apply tunings contained in the tuned profile, run the following
+command after creating a {{ book.productTitle }} volume.
+
+------------------------------
+tuned-adm profile profile-name
+------------------------------
+
+For example:
+
+------------------------------------
+tuned-adm profile rhgs-sequential-io
+------------------------------------
+
+{% endif %}
+
+For small-file and random write performance, we strongly recommend
+writeback cache, that is, non-volatile random-access memory (NVRAM) in
+your storage controller. For example, normal Dell and HP storage
+controllers have it. Ensure that NVRAM is enabled, that is, the battery
+is working. Refer your hardware documentation for details on enabling
+NVRAM.
+
+Do not enable writeback caching in the disk drives, this is a policy
+where the disk drive considers the write is complete before the write
+actually made it to the magnetic media (platter). As a result, the disk
+write cache might lose its data during a power failure or even loss of
+metadata leading to file system corruption.
+
+[[Network4]]
+= Network
+
+Data traffic Network becomes a bottleneck as and when number of storage
+nodes increase. By adding a 10GbE or faster network for data traffic,
+you can achieve faster per node performance. Jumbo frames must be
+enabled at all levels, that is, client , {{ book.productTitle }} node,
+and ethernet switch levels. MTU of size N+208 must be supported by
+ethernet switch where N=9000. We recommend you to have a separate
+network for management and data traffic when protocols like NFS /CIFS
+are used instead of native client. Preferred bonding mode for
+{{ book.productTitle }} client is mode 6 (balance-alb), this allows client to
+transmit writes in parallel on separate NICs much of the time.
+
+[[sect-Memory]]
+= Memory
+
+{{ book.productTitle }} does not consume significant compute resources
+from the storage nodes themselves. However, read intensive workloads can
+benefit greatly from additional RAM.
+
+[[chap-Configuring_Gluster_for_Enhancing_Performance-Virtual_Memory_Parameters_1]]
+== Virtual Memory Parameters
+
+The data written by the applications is aggregated in the operating
+system page cache before being flushed to the disk. The aggregation and
+writeback of dirty data is governed by the Virtual Memory parameters.
+The following parameters may have a significant performance impact:
+
+* vm.dirty_ratio
+* vm.dirty_background_ratio
+
+The appropriate values of these parameters vary with the type of
+workload:
+
+* Large-file sequential I/O workloads benefit from higher values for
+these parameters.
+* For small-file and random I/O workloads it is recommended to keep
+these parameter values low.
+
+The {{ book.productTitle }} tuned profiles set the values for these
+parameters appropriately. Hence, it is important to select and activate
+the appropriate {{ book.productTitle }} profile based on the workload.
+
+[[Small_File_Performance_Enhancements]]
+= Small File Performance Enhancements
+
+The ratio of the time taken to perform operations on the metadata of a
+file to performing operations on its data determines the difference
+between large files and small files. `Metadata-intensive workload` is
+the term used to identify such workloads. A few performance enhancements
+can be made to optimize the network and storage performance and minimize
+the effect of slow throughput and response time for small files in a
+{{ book.productTitle }} trusted storage pool.
+
+_______________________________________________________________________
+*Note*
+
+For a small-file workload, activate the `rhgs-random-io` tuned profile.
+_______________________________________________________________________
+
+*Configuring Threads for Event Processing.*
+
+You can set the `client.event-thread` and `server.event-thread` values
+for the client and server components. Setting the value to 3, for
+example, would enable handling three network connections simultaneously.
+
+*Setting the event threads value for a client*
+
+You can tune the {{ book.productTitle }} Server performance by tuning
+the event thread values.
+
+---------------------------------------------------------
+# gluster volume set VOLNAME client.event-threads <value>
+---------------------------------------------------------
+
+----------------------------------------------------
+# gluster volume set test-vol client.event-threads 3
+----------------------------------------------------
+
+*Setting the event thread value for a server*
+
+You can tune the {{ book.productTitle }} Server performance using event
+thread values.
+
+---------------------------------------------------------
+# gluster volume set VOLNAME server.event-threads <value>
+---------------------------------------------------------
+
+----------------------------------------------------
+# gluster volume set test-vol server.event-threads 3
+----------------------------------------------------
+
+*Verifying the event thread values*
+
+You can verify the event thread values that are set for the client and
+server components by executing the following command:
+
+-----------------------------
+# gluster volume info VOLNAME
+-----------------------------
+
+See topic, Configuring Volume Options for information on the minimum,
+maximum, and default values for setting these volume options.
+
+*Best practices to tune event threads.*
+
+It is possible to see performance gains with the {{ book.productTitle }}
+stack by tuning the number of threads processing events from network
+connections.The following are the recommended best practices to tune the
+event thread values.
+
+1.  As each thread processes a connection at a time, having more threads
+than connections to either the brick processes (`glusterfsd`) or the
+client processes (`glusterfs` or `gfapi`) is not recommended. Due to
+this reason, monitor the connection counts (using the `netstat` command)
+on the clients and on the bricks to arrive at an appropriate number for
+the event thread count.
+2.  Configuring a higher event threads value than the available
+processing units could again cause context switches on these threads. As
+a result reducing the number deduced from the previous step to a number
+that is less that the available processing units is recommended.
+3.  If a {{ book.productTitle }} volume has a high number of brick
+processes running on a single node, then reducing the event threads
+number deduced in the previous step would help the competing processes
+to gain enough concurrency and avoid context switches across the
+threads.
+4.  If a specific thread consumes more number of CPU cycles than needed,
+increasing the event thread count would enhance the performance of the
+{{ book.productTitle }} Server.
+5.  In addition to the deducing the appropriate event-thread count,
+increasing the `server.outstanding-rpc-limit `on the storage nodes can
+also help to queue the requests for the brick processes and not let the
+requests idle on the network queue.
+6.  Another parameter that could improve the performance when tuning the
+event-threads value is to set the` performance.io-thread-count` (and its
+related thread-counts) to higher values, as these threads perform the
+actual IO operations on the underlying file system.
+
+== Enabling Lookup Optimization
+
+Distribute xlator (DHT) has a performance penalty when it deals with
+negative lookups. Negative lookups are lookup operations for entries
+that does not exist in the volume. A lookup for a file/directory that
+does not exist is a negative lookup.
+
+Negative lookups are expensive and typically slows down file creation,
+as DHT attempts to find the file in all sub-volumes. This especially
+impacts small file performance, where a large number of files are being
+added/created in quick succession to the volume.
+
+The negative lookup fan-out behavior can be optimized by not performing
+the same in a balanced volume.
+
+The `cluster.lookup-optimize` configuration option enables DHT lookup
+optimization. To enable this option run the following command:
+
+--------------------------------------------------------------
+# gluster volume set VOLNAME cluster.lookup-optimize <on/off>\
+--------------------------------------------------------------
+
+______________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+*Note*
+
+The configuration takes effect for newly created directories immediately
+post setting the above option. For existing directories, a rebalance is
+required to ensure the volume is in balance before DHT applies the
+optimization on older directories.
+______________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+
+[[Replication1]]
+= Replication
+
+If a system is configured for two ways, active-active replication, write
+throughput will generally be half of what it would be in a
+non-replicated configuration. However, read throughput is generally
+improved by replication, as reads can be delivered from either storage
+node.

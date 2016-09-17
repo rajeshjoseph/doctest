@@ -1,0 +1,16 @@
+[[chap-Stopping_and_Restarting_Red_Hat_Storage_Instance]]
+= Stopping and Restarting {{ book.productTitle }} Instance
+
+When you stop and restart a {{ book.productTitle }} instance, Amazon Web
+Services assigns the instance a new IP address and hostname. This
+results in the instance losing its association with the virtual
+hardware, causing disruptions to the trusted storage pool. To prevent
+errors, add the restarted {{ book.productTitle }} instance to the
+trusted storage pool. See
+<<../architecture/chap-Trusted_Storage_Pools.adoc#Adding_Servers_to_the_Trusted_Storage_Pool,
+Adding Servers to the Trusted Storage Pool>>.
+
+Rebooting the {{ book.productTitle }} instance preserves the IP address
+and hostname and does not lose its association with the virtual
+hardware. This does not cause any disruptions to the trusted storage
+pool.

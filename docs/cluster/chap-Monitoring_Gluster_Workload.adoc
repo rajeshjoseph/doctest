@@ -1,0 +1,1278 @@
+[[chap-Monitoring_Red_Hat_Storage_Workload]]
+= Monitoring {{ book.productTitle }} Gluster Workload
+
+Monitoring storage volumes is helpful when conducting a capacity
+planning or performance tuning activity on a {{ book.productTitle }}
+volume. You can monitor the {{ book.productTitle }} volumes with
+different parameters and use those system outputs to identify and
+troubleshoot issues.
+
+You can use the `volume top` and `volume profile` commands to view vital
+performance information and identify bottlenecks on each brick of a
+volume.
+
+You can also perform a statedump of the brick processes and NFS server
+process of a volume, and also view volume status and volume information.
+
+______________________________________________________________________________________________
+*Note*
+
+If you restart the server process, the existing `profile` and `top`
+information will be reset.
+______________________________________________________________________________________________
+
+[[sect-Running_the_Volume_Profile_Command]]
+= Running the Volume Profile Command
+
+The `volume profile` command provides an interface to get the per-brick
+or NFS server I/O information for each File Operation (FOP) of a volume.
+This information helps in identifying the bottlenecks in the storage
+system.
+
+This section describes how to use the `volume profile` command.
+
+[[Start_Profiling]]
+== Start Profiling
+
+To view the file operation information of each brick, start the
+profiling command:
+
+`# gluster volume profile VOLNAME start `
+
+For example, to start profiling on test-volume:
+
+------------------------------------------
+# gluster volume profile test-volume start
+Profiling started on test-volume
+------------------------------------------
+
+______________________________________________________________________________________________________________________________________________________________________________
+*Important*
+
+Running `profile` command can affect system performance while the
+profile information is being collected. {{ book.company }} recommends that
+profiling should only be used for debugging.
+______________________________________________________________________________________________________________________________________________________________________________
+
+When profiling is started on the volume, the following additional
+options are displayed when using the `volume info` command:
+
+-----------------------------------
+diagnostics.count-fop-hits: on
+
+diagnostics.latency-measurement: on
+-----------------------------------
+
+[[Displaying_the_IO_Information]]
+== Displaying the I/O Information
+
+To view the I/O information of the bricks on a volume, use the following
+command:
+
+`# gluster volume profile VOLNAME info`
+
+For example, to view the I/O information of test-volume:
+
+-----------------------------------------------------------
+# gluster volume profile test-volume info
+Brick: Test:/export/2
+Cumulative Stats:
+
+Block                     1b+           32b+           64b+
+Size:
+       Read:                0              0              0
+       Write:             908             28              8
+
+Block                   128b+           256b+         512b+
+Size:
+       Read:                0               6             4
+       Write:               5              23            16
+
+Block                  1024b+          2048b+        4096b+
+Size:
+       Read:                 0              52           17
+       Write:               15             120          846
+
+Block                   8192b+         16384b+      32768b+
+Size:
+       Read:                52               8           34
+       Write:              234             134          286
+
+Block                                  65536b+     131072b+
+Size:
+       Read:                               118          622
+       Write:                             1341          594
+
+
+%-latency  Avg-      Min-       Max-       calls     Fop
+          latency   Latency    Latency  
+___________________________________________________________
+4.82      1132.28   21.00      800970.00   4575    WRITE
+5.70       156.47    9.00      665085.00   39163   READDIRP
+11.35      315.02    9.00     1433947.00   38698   LOOKUP
+11.88     1729.34   21.00     2569638.00    7382   FXATTROP
+47.35   104235.02 2485.00     7789367.00     488   FSYNC
+
+------------------
+
+------------------
+
+Duration     : 335
+
+BytesRead    : 94505058
+
+BytesWritten : 195571980
+-----------------------------------------------------------
+
+To view the I/O information of the NFS server on a specified volume, use
+the following command:
+
+`# gluster volume profile VOLNAME info nfs `
+
+For example, to view the I/O information of the NFS server on
+test-volume:
+
+-------------------------------------------------------------------------------
+# gluster volume profile test-volume info nfs
+NFS Server : localhost
+----------------------
+Cumulative Stats:
+   Block Size:              32768b+               65536b+ 
+ No. of Reads:                    0                     0 
+No. of Writes:                 1000                  1000 
+ %-latency   Avg-latency   Min-Latency   Max-Latency   No. of calls         Fop
+ ---------   -----------   -----------   -----------   ------------        ----
+      0.01     410.33 us     194.00 us     641.00 us              3      STATFS
+      0.60     465.44 us     346.00 us     867.00 us            147       FSTAT
+      1.63     187.21 us      67.00 us    6081.00 us           1000     SETATTR
+      1.94     221.40 us      58.00 us   55399.00 us           1002      ACCESS
+      2.55     301.39 us      52.00 us   75922.00 us            968        STAT
+      2.85     326.18 us      88.00 us   66184.00 us           1000    TRUNCATE
+      4.47     511.89 us      60.00 us  101282.00 us           1000       FLUSH
+      5.02    3907.40 us    1723.00 us   19508.00 us            147    READDIRP
+     25.42    2876.37 us     101.00 us  843209.00 us           1012      LOOKUP
+     55.52    3179.16 us     124.00 us  121158.00 us           2000       WRITE
+ 
+    Duration: 7074 seconds
+   Data Read: 0 bytes
+Data Written: 102400000 bytes
+ 
+Interval 1 Stats:
+   Block Size:              32768b+               65536b+ 
+ No. of Reads:                    0                     0 
+No. of Writes:                 1000                  1000 
+ %-latency   Avg-latency   Min-Latency   Max-Latency   No. of calls         Fop
+ ---------   -----------   -----------   -----------   ------------        ----
+      0.01     410.33 us     194.00 us     641.00 us              3      STATFS
+      0.60     465.44 us     346.00 us     867.00 us            147       FSTAT
+      1.63     187.21 us      67.00 us    6081.00 us           1000     SETATTR
+      1.94     221.40 us      58.00 us   55399.00 us           1002      ACCESS
+      2.55     301.39 us      52.00 us   75922.00 us            968        STAT
+      2.85     326.18 us      88.00 us   66184.00 us           1000    TRUNCATE
+      4.47     511.89 us      60.00 us  101282.00 us           1000       FLUSH
+      5.02    3907.40 us    1723.00 us   19508.00 us            147    READDIRP
+     25.41    2878.07 us     101.00 us  843209.00 us           1011      LOOKUP
+     55.53    3179.16 us     124.00 us  121158.00 us           2000       WRITE
+ 
+    Duration: 330 seconds
+   Data Read: 0 bytes
+Data Written: 102400000 bytes
+-------------------------------------------------------------------------------
+
+[[Stop_Profiling]]
+== Stop Profiling
+
+To stop profiling on a volume, use the following command:
+
+`# gluster volume profile VOLNAME stop`
+
+For example, to stop profiling on test-volume:
+
+------------------------------------------
+# gluster volume profile test-volume stop 
+Profiling stopped on test-volume
+------------------------------------------
+
+[[sect-Running_the_Volume_Top_Command]]
+= Running the Volume Top Command
+
+The `volume top` command allows you to view the glusterFS bricks’
+performance metrics, including read, write, file open calls, file read
+calls, file write calls, directory open calls, and directory real calls.
+The `volume top` command displays up to 100 results.
+
+This section describes how to use the `volume top` command.
+
+[[Viewing_Open_File_Descriptor_Count_and_Maximum_File_Descriptor_Count]]
+== Viewing Open File Descriptor Count and Maximum File Descriptor Count
+
+You can view the current open file descriptor count and the list of
+files that are currently being accessed on the brick with the
+`volume top` command. The `volume top` command also displays the maximum
+open file descriptor count of files that are currently open, and the
+maximum number of files opened at any given point of time since the
+servers are up and running. If the brick name is not specified, then the
+open file descriptor metrics of all the bricks belonging to the volume
+displays.
+
+To view the open file descriptor count and the maximum file descriptor
+count, use the following command:
+
+`# gluster volume top VOLNAME open [nfs | brick BRICK-NAME] [list-cnt cnt]`
+
+For example, to view the open file descriptor count and the maximum file
+descriptor count on brick server:/export on test-volume, and list the
+top 10 open calls:
+
+------------------------------------------------------------------------
+# gluster volume top test-volume open brick server:/export  list-cnt 10 
+Brick: server:/export/dir1
+Current open fd's: 34 Max open fd's: 209
+             ==========Open file stats========
+
+open            file name
+call count     
+
+2               /clients/client0/~dmtmp/PARADOX/
+                COURSES.DB
+
+11              /clients/client0/~dmtmp/PARADOX/
+                ENROLL.DB
+
+11              /clients/client0/~dmtmp/PARADOX/
+                STUDENTS.DB
+
+10              /clients/client0/~dmtmp/PWRPNT/
+                TIPS.PPT
+
+10              /clients/client0/~dmtmp/PWRPNT/
+                PCBENCHM.PPT
+
+9               /clients/client7/~dmtmp/PARADOX/
+                STUDENTS.DB
+
+9               /clients/client1/~dmtmp/PARADOX/
+                STUDENTS.DB
+
+9               /clients/client2/~dmtmp/PARADOX/
+                STUDENTS.DB
+
+9               /clients/client0/~dmtmp/PARADOX/
+                STUDENTS.DB
+
+9               /clients/client8/~dmtmp/PARADOX/
+                STUDENTS.DB
+------------------------------------------------------------------------
+
+[[Viewing_Highest_File_Read_Calls]]
+== Viewing Highest File Read Calls
+
+You can view a list of files with the highest file read calls on each
+brick with the `volume top` command. If the brick name is not specified,
+a list of 100 files are displayed by default.
+
+To view the highest read() calls, use the following command:
+
+`# gluster volume top VOLNAME read [nfs | brick BRICK-NAME] [list-cnt cnt] `
+
+For example, to view the highest read calls on brick server:/export of
+test-volume:
+
+----------------------------------------------------------------------
+# gluster volume top test-volume read brick server:/export list-cnt 10
+Brick: server:/export/dir1
+          ==========Read file stats========
+
+read              filename
+call count
+
+116              /clients/client0/~dmtmp/SEED/LARGE.FIL
+
+64               /clients/client0/~dmtmp/SEED/MEDIUM.FIL
+
+54               /clients/client2/~dmtmp/SEED/LARGE.FIL
+
+54               /clients/client6/~dmtmp/SEED/LARGE.FIL
+
+54               /clients/client5/~dmtmp/SEED/LARGE.FIL
+
+54               /clients/client0/~dmtmp/SEED/LARGE.FIL
+
+54               /clients/client3/~dmtmp/SEED/LARGE.FIL
+
+54               /clients/client4/~dmtmp/SEED/LARGE.FIL
+
+54               /clients/client9/~dmtmp/SEED/LARGE.FIL
+
+54               /clients/client8/~dmtmp/SEED/LARGE.FIL
+----------------------------------------------------------------------
+
+[[Viewing_Highest_File_Write_Calls]]
+== Viewing Highest File Write Calls
+
+You can view a list of files with the highest file write calls on each
+brick with the `volume top` command. If the brick name is not specified,
+a list of 100 files displays by default.
+
+To view the highest write() calls, use the following command:
+
+`# gluster volume top VOLNAME write [nfs | brick BRICK-NAME] [list-cnt cnt] `
+
+For example, to view the highest write calls on brick server:/export of
+test-volume:
+
+------------------------------------------------------------------------
+# gluster volume top test-volume write brick server:/export/ list-cnt 10
+Brick: server:/export/dir1
+
+               ==========Write file stats========
+write call count   filename
+
+83                /clients/client0/~dmtmp/SEED/LARGE.FIL
+
+59                /clients/client7/~dmtmp/SEED/LARGE.FIL
+
+59                /clients/client1/~dmtmp/SEED/LARGE.FIL
+
+59                /clients/client2/~dmtmp/SEED/LARGE.FIL
+
+59                /clients/client0/~dmtmp/SEED/LARGE.FIL
+
+59                /clients/client8/~dmtmp/SEED/LARGE.FIL
+
+59                /clients/client5/~dmtmp/SEED/LARGE.FIL
+
+59                /clients/client4/~dmtmp/SEED/LARGE.FIL
+
+59                /clients/client6/~dmtmp/SEED/LARGE.FIL
+
+59                /clients/client3/~dmtmp/SEED/LARGE.FIL
+------------------------------------------------------------------------
+
+[[Viewing_Highest_Open_Calls_on_a_Directory]]
+== Viewing Highest Open Calls on a Directory
+
+You can view a list of files with the highest open calls on the
+directories of each brick with the `volume top` command. If the brick
+name is not specified, the metrics of all bricks belonging to that
+volume displays.
+
+To view the highest open() calls on each directory, use the following
+command:
+
+`# gluster volume top VOLNAME opendir [brick BRICK-NAME] [list-cnt cnt] `
+
+For example, to view the highest open calls on brick server:/export/ of
+test-volume:
+
+--------------------------------------------------------------------------
+# gluster volume top test-volume opendir brick server:/export/ list-cnt 10
+Brick: server:/export/dir1 
+         ==========Directory open stats========
+
+Opendir count     directory name
+
+1001              /clients/client0/~dmtmp
+
+454               /clients/client8/~dmtmp
+
+454               /clients/client2/~dmtmp
+ 
+454               /clients/client6/~dmtmp
+
+454               /clients/client5/~dmtmp
+
+454               /clients/client9/~dmtmp
+
+443               /clients/client0/~dmtmp/PARADOX
+
+408               /clients/client1/~dmtmp
+
+408               /clients/client7/~dmtmp
+
+402               /clients/client4/~dmtmp
+--------------------------------------------------------------------------
+
+[[Viewing_Highest_Read_Calls_on_a_Directory]]
+== Viewing Highest Read Calls on a Directory
+
+You can view a list of files with the highest directory read calls on
+each brick with the `volume top` command. If the brick name is not
+specified, the metrics of all bricks belonging to that volume displays.
+
+To view the highest directory read() calls on each brick, use the
+following command:
+
+`# gluster volume top VOLNAME readdir [nfs | brick BRICK-NAME] [list-cnt cnt] `
+
+For example, to view the highest directory read calls on brick
+server:/export/ of test-volume:
+
+--------------------------------------------------------------------------
+# gluster volume top test-volume readdir brick server:/export/ list-cnt 10
+Brick: server:/export/dir1
+==========Directory readdirp stats========
+
+readdirp count           directory name
+
+1996                    /clients/client0/~dmtmp
+
+1083                    /clients/client0/~dmtmp/PARADOX
+
+904                     /clients/client8/~dmtmp
+
+904                     /clients/client2/~dmtmp
+
+904                     /clients/client6/~dmtmp
+
+904                     /clients/client5/~dmtmp
+
+904                     /clients/client9/~dmtmp
+
+812                     /clients/client1/~dmtmp
+
+812                     /clients/client7/~dmtmp
+
+800                     /clients/client4/~dmtmp
+--------------------------------------------------------------------------
+
+[[Viewing_Read_Performance]]
+== Viewing Read Performance
+
+You can view the read throughput of files on each brick with the
+`volume top` command. If the brick name is not specified, the metrics of
+all the bricks belonging to that volume is displayed. The output is the
+read throughput.
+
+This command initiates a read() call for the specified count and block
+size and measures the corresponding throughput directly on the back-end
+export, bypassing glusterFS processes.
+
+To view the read performance on each brick, use the command, specifying
+options as needed:
+
+`# gluster volume top VOLNAME read-perf [bs blk-size count count] [nfs | brick BRICK-NAME] [list-cnt cnt]`
+
+For example, to view the read performance on brick `server:/export/` of
+test-volume, specifying a 256 block size, and list the top 10 results:
+
+-------------------------------------------------------------------------------------------
+# gluster volume top test-volume read-perf bs 256 count 1 brick server:/export/ list-cnt 10
+Brick: server:/export/dir1 256 bytes (256 B) copied, Throughput: 4.1 MB/s 
+       ==========Read throughput file stats========
+
+read         filename                         Time
+through
+put(MBp
+s)
+
+2912.00   /clients/client0/~dmtmp/PWRPNT/    -2012-05-09
+           TRIDOTS.POT                   15:38:36.896486
+                                           
+2570.00   /clients/client0/~dmtmp/PWRPNT/    -2012-05-09
+           PCBENCHM.PPT                  15:38:39.815310
+                                           
+2383.00   /clients/client2/~dmtmp/SEED/      -2012-05-09
+           MEDIUM.FIL                    15:52:53.631499
+                                           
+2340.00   /clients/client0/~dmtmp/SEED/      -2012-05-09
+           MEDIUM.FIL                    15:38:36.926198
+
+2299.00   /clients/client0/~dmtmp/SEED/      -2012-05-09
+           LARGE.FIL                     15:38:36.930445
+                                                      
+2259.00  /clients/client0/~dmtmp/PARADOX/    -2012-05-09
+          COURSES.X04                    15:38:40.549919
+                                           
+2221.00  /clients/client9/~dmtmp/PARADOX/    -2012-05-09
+          STUDENTS.VAL                   15:52:53.298766
+                                           
+2221.00  /clients/client8/~dmtmp/PARADOX/    -2012-05-09
+         COURSES.DB                      15:39:11.776780
+                                           
+2184.00  /clients/client3/~dmtmp/SEED/       -2012-05-09
+          MEDIUM.FIL                     15:39:10.251764
+                                           
+2184.00  /clients/client5/~dmtmp/WORD/       -2012-05-09
+         BASEMACH.DOC                    15:39:09.336572
+                                           
+-------------------------------------------------------------------------------------------
+
+[[Viewing_Write_Performance]]
+== Viewing Write Performance
+
+You can view the write throughput of files on each brick or NFS server
+with the `volume top` command. If brick name is not specified, then the
+metrics of all the bricks belonging to that volume will be displayed.
+The output will be the write throughput.
+
+This command initiates a write operation for the specified count and
+block size and measures the corresponding throughput directly on
+back-end export, bypassing glusterFS processes.
+
+To view the write performance on each brick, use the following command,
+specifying options as needed:
+
+`# gluster volume top VOLNAME write-perf [bs blk-size count count] [nfs | brick BRICK-NAME] [list-cnt cnt] `
+
+For example, to view the write performance on brick `server:/export/` of
+test-volume, specifying a 256 block size, and list the top 10 results:
+
+--------------------------------------------------------------------------------------------
+# gluster volume top test-volume write-perf bs 256 count 1 brick server:/export/ list-cnt 10
+Brick: server:/export/dir1 256 bytes (256 B) copied, Throughput: 2.8 MB/s
+       ==========Write throughput file stats========
+
+write                filename                 Time
+throughput
+(MBps)
+ 
+1170.00    /clients/client0/~dmtmp/SEED/     -2012-05-09
+           SMALL.FIL                     15:39:09.171494
+
+1008.00    /clients/client6/~dmtmp/SEED/     -2012-05-09
+           LARGE.FIL                      15:39:09.73189
+
+949.00    /clients/client0/~dmtmp/SEED/      -2012-05-09
+          MEDIUM.FIL                     15:38:36.927426
+
+936.00   /clients/client0/~dmtmp/SEED/       -2012-05-09
+         LARGE.FIL                        15:38:36.933177    
+897.00   /clients/client5/~dmtmp/SEED/       -2012-05-09
+         MEDIUM.FIL                       15:39:09.33628
+
+897.00   /clients/client6/~dmtmp/SEED/       -2012-05-09
+         MEDIUM.FIL                       15:39:09.27713
+
+885.00   /clients/client0/~dmtmp/SEED/       -2012-05-09
+          SMALL.FIL                      15:38:36.924271
+
+528.00   /clients/client5/~dmtmp/SEED/       -2012-05-09
+         LARGE.FIL                        15:39:09.81893
+
+516.00   /clients/client6/~dmtmp/ACCESS/    -2012-05-09
+         FASTENER.MDB                    15:39:01.797317
+--------------------------------------------------------------------------------------------
+
+[[sect-gstatus_Command]]
+= gstatus Command
+
+[[gstatus_Command]]
+== gstatus Command
+
+A {{ book.productTitle }} trusted storage pool consists of nodes,
+volumes, and bricks. A new command called `gstatus` provides an overview
+of the health of a {{ book.productTitle }} trusted storage pool for
+distributed, replicated, distributed-replicated, dispersed, and
+distributed-dispersed volumes.
+
+The `gstatus` command provides an easy-to-use, high-level view of the
+health of a trusted storage pool with a single command. By executing the
+glusterFS commands, it gathers information about the statuses of the
+{{ book.productTitle }} nodes, volumes, and bricks. The checks are performed
+across the trusted storage pool and the status is displayed. This data
+can be analyzed to add further checks and incorporate deployment
+best-practices and free-space triggers.
+
+A {{ book.productTitle }} volume is made from individual file systems
+(glusterFS bricks) across multiple nodes. Although the complexity is
+abstracted, the status of the individual bricks affects the data
+availability of the volume. For example, even without replication, the
+loss of a single brick in the volume will not cause the volume itself to
+be unavailable, instead this would manifest as inaccessible files in the
+file system.
+
+=== Prerequisites
+
+*Package dependencies*
+
+* Python 2.6 or above
+
+To install gstatus, refer to the Deploying gstatus on {{ book.productTitle }}
+chapter in the {{ book.productTitle }} {{ book.productVersion }}  Installation Guide.
+
+[[Executing_the_gstatus_command]]
+== Executing the gstatus command
+
+The `gstatus` command can be invoked in different ways. The table below
+shows the optional switches that can be used with gstatus.
+
+------------------------
+# gstatus -h 
+Usage: gstatus [options]
+------------------------
+
+.gstatus Command Options
+[cols=",",options="header",]
+|=======================================================================
+|Option |Description
+|--version |Displays the program's version number and exits.
+
+|-h, --help |Displays the help message and exits.
+
+|-s, --state |Displays the high level health of the {{ book.productTitle }}
+trusted storage pool.
+
+|-v, --volume |Displays volume information of all the volumes, by
+default. Specify a volume name to display the volume information of a
+specific volume.
+
+|-b, --backlog |Probes the self heal state.
+
+|-a, --all |Displays the detailed status of volume health. (This output
+is aggregation of -s and -v).
+
+|-l, --layout |Displays the brick layout when used in combination with
+-v, or -a .
+
+|-o OUTPUT_MODE, --output-mode=OUTPUT_MODE |Produces outputs in various
+formats such as - json, keyvalue, or console(default).
+
+|-D, --debug |Enables the debug mode.
+
+|-w, --without-progress |Disables progress updates during data
+gathering.
+
+|-u UNITS, --units=UNITS |Displays capacity units in decimal or binary
+format (GB vs GiB).
+
+|-t TIMEOUT, --timeout=TIMEOUT |Specify the command timeout value in
+seconds.
+|=======================================================================
+
+.Commonly used gstatus Commands
+[cols=",",options="header",]
+|=======================================================================
+|Command |Description
+|`gstatus -s` |An overview of the trusted storage pool.
+
+|`gstatus -a` |View detailed status of the volume health.
+
+|`gstatus -vl VOLNAME` |View the volume details, including the brick
+layout.
+
+|`gstatus -o <keyvalue>` |View the summary output for Nagios and
+Logstash.
+|=======================================================================
+
+*Interpreting the output with Examples*
+
+Each invocation of `gstatus` provides a header section, which provides a
+high level view of the state of the {{ book.productTitle }} trusted
+storage pool. The Status field within the header offers two states;
+`Healthy` and `Unhealthy`. When problems are detected, the status field
+changes to Unhealthy(n), where n denotes the total number of issues that
+have been detected.
+
+The following examples illustrate `gstatus` command output for both
+healthy and unhealthy {{ book.productTitle }} environments.
+
+--------------------------------------------------------------------------
+# gstatus -a 
+ 
+   Product: RHGS Server v3.1.1      Capacity:  36.00 GiB(raw bricks) 
+      Status: HEALTHY                        7.00 GiB(raw used) 
+   Glusterfs: 3.7.1                        18.00 GiB(usable from volumes) 
+  OverCommit: No                Snapshots:   0 
+
+   Nodes    :  4/ 4  Volumes:  1 Up 
+   Self Heal:  4/ 4            0 Up(Degraded) 
+   Bricks   :  4/ 4            0 Up(Partial) 
+   Connections  : 5 / 20       0 Down 
+
+Volume Information 
+ splunk       UP - 4/4 bricks up - Distributed-Replicate 
+                  Capacity: (18% used) 3.00 GiB/18.00 GiB (used/total) 
+                  Snapshots: 0 
+                  Self Heal:  4/ 4 
+                  Tasks Active: None 
+                  Protocols: glusterfs:on  NFS:on  SMB:off 
+                  Gluster Connectivty: 5 hosts, 20 tcp connections
+ 
+
+
+Status Messages 
+- Cluster is HEALTHY, all_bricks checks successful 
+--------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------------
+# gstatus -al 
+ 
+     Product: RHGS Server v3.1.1      Capacity:  27.00 GiB(raw bricks) 
+      Status: UNHEALTHY(4)                   5.00 GiB(raw used) 
+   Glusterfs: 3.7.1                      18.00 GiB(usable from volumes) 
+  OverCommit: No                Snapshots:   0 
+
+   Nodes    :  3/ 4  Volumes:  0 Up 
+   Self Heal:  3/ 4            1 Up(Degraded) 
+   Bricks   :  3/ 4            0 Up(Partial) 
+   Connections  :  5/ 20       0 Down 
+
+Volume Information 
+ splunk           UP(DEGRADED) - 3/4 bricks up - Distributed-Replicate 
+                  Capacity: (18% used) 3.00 GiB/18.00 GiB (used/total) 
+                  Snapshots: 0 
+                  Self Heal:  3/ 4 
+                  Tasks Active: None 
+                  Protocols: glusterfs:on  NFS:on  SMB:off 
+                  Gluster Connectivty: 5 hosts, 20 tcp connections 
+
+ splunk---------- + 
+                  | 
+                Distribute (dht) 
+                         | 
+                         +-- Repl Set 0 (afr) 
+                         |     | 
+                         |     +--splunk-rhs1:/rhgs/brick1/splunk(UP) 2.00 GiB/9.00 GiB 
+                         |     | 
+                         |     +--splunk-rhs2:/rhgs/brick1/splunk(UP) 2.00 GiB/9.00 GiB 
+                         | 
+                         +-- Repl Set 1 (afr) 
+                               | 
+                               +--splunk-rhs3:/rhgs/brick1/splunk(DOWN) 0.00 KiB/0.00 KiB 
+                               | 
+                               +--splunk-rhs4:/rhgs/brick1/splunk(UP) 2.00 GiB/9.00 GiB 
+ Status Messages 
+  - Cluster is UNHEALTHY 
+  - One of the nodes in the cluster is down
+  - Brick splunk-rhs3:/rhgs/brick1/splunk in volume 'splunk' is down/unavailable
+  - INFO -> Not all bricks are online, so capacity provided is NOT accurate
+------------------------------------------------------------------------------------------
+
+Example 2, displays the output of the command when the `-l` option is
+used. The `brick layout` mode shows the brick and node relationships.
+This provides a simple means of checking the replication relationships
+for bricks across nodes is as intended.
+
+.Field Descriptions of the `gstatus` command output
+[cols=",",options="header",]
+|=======================================================================
+|Field |Description
+|Volume State |Up – The volume is started and available, and all the
+bricks are up .
+
+|Up (Degraded) - This state is specific to replicated volumes, where at
+least one brick is down within a replica set. Data is still 100%
+available due to the alternate replicas, but the resilience of the
+volume to further failures within the same replica set flags this volume
+as `degraded`.
+
+|Up (Partial) - Effectively, this means that all though some bricks in
+the volume are online, there are others that are down to a point where
+areas of the file system will be missing. For a distributed volume, this
+state is seen if any brick is down, whereas for a replicated volume a
+complete replica set needs to be down before the volume state
+transitions to `PARTIAL`.
+
+|Down - Bricks are down, or the volume is yet to be started.
+
+|Capacity Information |This information is derived from the brick
+information taken from the `volume status detail` command. The accuracy
+of this number hence depends on the nodes and bricks all being online -
+elements missing from the configuration are not considered in the
+calculation.
+
+|Over-commit Status |The physical file system used by a brick could be
+re-used by multiple volumes, this field indicates whether a brick is
+used by multiple volumes. But this exposes the system to capacity
+conflicts across different volumes when the quota feature is not in use.
+Reusing a brick for multiple volumes is not recommended.
+
+|Connections |Displays a count of connections made to the trusted pool
+and each of the volumes.
+
+|Nodes / Self Heal / Bricks X/Y |This indicates that X components of Y
+total/expected components within the trusted pool are online. In Example
+2, note that 3/4 is displayed against all of these fields, indicating 3
+nodes are available out of 4 nodes. A node, brick, and the self-heal
+daemon are also unavailable.
+
+|Tasks Active |Active background tasks such as rebalance, remove-brick
+are displayed here against individual volumes.
+
+|Protocols |Displays which protocols have been enabled for the volume.
+
+|Snapshots |Displays a count of the number of snapshots taken for the
+volume. The snapshot count for each volume is `rolled up` to the trusted
+storage pool to provide a high level view of the number of snapshots in
+the environment.
+
+|Status Messages |After the information is gathered, any errors detected
+are reported in the `Status Messages` section. These descriptions
+provide a view of the problem and the potential impact of the condition.
+|=======================================================================
+
+[[Listing_Volumes]]
+= Listing Volumes
+
+You can list all volumes in the trusted storage pool using the following
+command:
+
+`# gluster volume list`
+
+For example, to list all volumes in the trusted storage pool:
+
+---------------------
+# gluster volume list
+test-volume
+volume1
+volume2
+volume3
+---------------------
+
+[[Displaying_Volume_Information]]
+= Displaying Volume Information
+
+You can display information about a specific volume, or all volumes, as
+needed, using the following command:
+
+`# gluster volume info VOLNAME`
+
+For example, to display information about test-volume:
+
+---------------------------------
+# gluster volume info test-volume
+Volume Name: test-volume
+Type: Distribute
+Status: Created
+Number of Bricks: 4
+Bricks:
+Brick1: server1:/rhgs/brick1
+Brick2: server2:/rhgs/brick2
+Brick3: server3:/rhgs/brick3
+Brick4: server4:/rhgs/brick4
+---------------------------------
+
+= Retrieving Volume Options Value
+
+{{ book.productTitle }} allows storage administrators to retrieve the
+value of a specific volume option. You can also retrieve all the values
+of the volume options associated to a gluster volume. To retrieve the
+value of volume options, use the `gluster volume get` command. If a
+volume option is reconfigured for a volume, then the same value is
+displayed. If the volume option is not reconfigured, the default value
+is displayed.
+
+The syntax is `# gluster volume get VOLNAMEkey | all`
+
+== Retrieving Value of Specific Volume Option
+
+To fetch the value of a specific volume option, execute the following
+command in the glusterFS directory:
+
+------------------------------------
+# gluster volume get <VOLNAME> <key>
+------------------------------------
+
+Where,
+
+VOLNAME: The volume name
+
+key: The value of the volume option
+
+For example:
+
+------------------------------------------
+# gluster volume get test-vol nfs.disable 
+ Option Value
+ ------ -----
+ nfs.disable on
+------------------------------------------
+
+== Retrieving Values of All the Volume Options
+
+To fetch the values of all the volume options, execute the following
+command in the glusterFS directory:
+
+----------------------------------
+# gluster volume get <VOLNAME> all
+----------------------------------
+
+Where,
+
+VOLNAME: The volume name
+
+key: To retrieve all the values of the volume options
+
+For example:
+
+-------------------------------------
+# gluster volume get test-vol all
+ Option Value
+ ------ -----
+ cluster.lookup-unhashed on
+ cluster.lookup-optimize off
+ cluster.min-free-disk 10%
+ cluster.min-free-inodes 5%
+ cluster.rebalance-stats off
+ cluster.subvols-per-directory (null)
+ ....
+-------------------------------------
+
+[[Performing_Statedump_on_a_Volume]]
+= Performing Statedump on a Volume
+
+Statedump is a mechanism through which you can get details of all
+internal variables and state of the glusterFS process at the time of
+issuing the command. You can perform statedumps of the brick processes
+and NFS server process of a volume using the statedump command. You can
+use the following options to determine what information is to be dumped:
+
+* *mem* - Dumps the memory usage and memory pool details of the bricks.
+* *iobuf* - Dumps iobuf details of the bricks.
+* *priv* - Dumps private information of loaded translators.
+* *callpool* - Dumps the pending calls of the volume.
+* *fd* - Dumps the open file descriptor tables of the volume.
+* *inode* - Dumps the inode tables of the volume.
+* *history* - Dumps the event history of the volume
+
+To perform a statedump of a volume or NFS server, use the following
+command, specifying options as needed:
+
+`# gluster volume statedump VOLNAME [nfs] [all|mem|iobuf|callpool|priv|fd|inode|history]`
+
+For example, to perform a statedump of test-volume:
+
+--------------------------------------
+# gluster volume statedump test-volume
+Volume statedump successful
+--------------------------------------
+
+The statedump files are created on the brick servers in
+the` /var/run/gluster/` directory or in the directory set using
+`server.statedump-path` volume option. The naming convention of the dump
+file is `brick-path.brick-pid.dump`.
+
+You can change the directory of the statedump file using the following
+command:
+
+`# gluster volume set VOLNAME server.statedump-path path`
+
+For example, to change the location of the statedump file of
+test-volume:
+
+------------------------------------------------------------------------------------------
+# gluster volume set test-volume server.statedump-path /usr/local/var/log/glusterfs/dumps/
+Set volume successful
+------------------------------------------------------------------------------------------
+
+You can view the changed path of the statedump file using the following
+command:
+
+`# gluster volume info VOLNAME`
+
+To retrieve the statedump information for client processes:
+
+`kill -USR1 process_ID`
+
+For example, to retrieve the statedump information for the client
+process ID 4120:
+
+---------------
+kill -USR1 4120
+---------------
+
+To obtain the statedump file of the GlusterFS Management Daemon, execute
+the following command:
+
+`# kill -SIGUSR1 PID_of_the_glusterd_process`
+
+The glusterd statedump file is found in the, `/var/run/gluster/`
+directory with the name in the format:
+
+`glusterdump-<PID_of_the_glusterd_process>.dump.<timestamp>`
+
+[[Displaying_Volume_Status]]
+= Displaying Volume Status
+
+You can display the status information about a specific volume, brick,
+or all volumes, as needed. Status information can be used to understand
+the current status of the brick, NFS processes, self-heal daemon and
+overall file system. Status information can also be used to monitor and
+debug the volume information. You can view status of the volume along
+with the details:
+
+* *detail* - Displays additional information about the bricks.
+* *clients* - Displays the list of clients connected to the volume.
+* *mem* - Displays the memory usage and memory pool details of the
+bricks.
+* *inode* - Displays the inode tables of the volume.
+* *fd* - Displays the open file descriptor tables of the volume.
+* *callpool* - Displays the pending calls of the volume.
+
+Display information about a specific volume using the following command:
+
+`# gluster volume status [all|VOLNAME [nfs | shd | BRICKNAME]] [detail |clients | mem | inode | fd |callpool]`
+
+For example, to display information about test-volume:
+
+------------------------------------------------------------
+# gluster volume status test-volume
+Status of volume: test-volume
+Gluster process                        Port    Online   Pid
+------------------------------------------------------------
+Brick arch:/export/rep1                24010   Y       18474
+Brick arch:/export/rep2                24011   Y       18479
+NFS Server on localhost                38467   Y       18486
+Self-heal Daemon on localhost          N/A     Y       18491
+------------------------------------------------------------
+
+The self-heal daemon status will be displayed only for replicated
+volumes.
+
+Display information about all volumes using the command:
+
+`# gluster volume status all`
+
+------------------------------------------------------------
+# gluster volume status all
+Status of volume: test
+Gluster process                       Port    Online   Pid
+-----------------------------------------------------------
+Brick 192.168.56.1:/export/test       24009   Y       29197
+NFS Server on localhost               38467   Y       18486
+
+Status of volume: test-volume
+Gluster process                       Port    Online   Pid
+------------------------------------------------------------
+Brick arch:/export/rep1               24010   Y       18474
+Brick arch:/export/rep2               24011   Y       18479
+NFS Server on localhost               38467   Y       18486
+Self-heal Daemon on localhost         N/A     Y       18491
+------------------------------------------------------------
+
+Display additional information about the bricks using the command:
+
+`# gluster volume status VOLNAME detail`
+
+For example, to display additional information about the bricks of
+test-volume:
+
+-----------------------------------------------------------------------------------
+# gluster volume status test-volume detail
+Status of volume: test-vol
+------------------------------------------------------------------------------
+Brick                : Brick arch:/rhgs     
+Port                 : 24012               
+Online               : Y                   
+Pid                  : 18649               
+File System          : ext4                
+Device               : /dev/sda1           
+Mount Options        : rw,relatime,user_xattr,acl,commit=600,barrier=1,data=ordered
+Inode Size           : 256                 
+Disk Space Free      : 22.1GB              
+Total Disk Space     : 46.5GB              
+Inode Count          : 3055616             
+Free Inodes          : 2577164
+-----------------------------------------------------------------------------------
+
+Detailed information is not available for NFS and the self-heal daemon.
+
+Display the list of clients accessing the volumes using the command:
+
+`# gluster volume status VOLNAME clients`
+
+For example, to display the list of clients connected to test-volume:
+
+-------------------------------------------
+# gluster volume status test-volume clients
+Brick : arch:/export/1
+Clients connected : 2
+Hostname          Bytes Read   BytesWritten
+--------          ---------    ------------
+127.0.0.1:1013    776          676
+127.0.0.1:1012    50440        51200
+-------------------------------------------
+
+Client information is not available for the self-heal daemon.
+
+Display the memory usage and memory pool details of the bricks on a
+volume using the command:
+
+`# gluster volume status VOLNAME mem`
+
+For example, to display the memory usage and memory pool details for the
+bricks on test-volume:
+
+--------------------------------------------------------------------------------------
+# gluster volume status test-volume mem
+Memory status for volume : test-volume
+----------------------------------------------
+Brick : arch:/export/1
+Mallinfo
+--------
+Arena    : 434176
+Ordblks  : 2
+Smblks   : 0
+Hblks    : 12
+Hblkhd   : 40861696
+Usmblks  : 0
+Fsmblks  : 0
+Uordblks : 332416
+Fordblks : 101760
+Keepcost : 100400
+
+Mempool Stats
+-------------
+Name                               HotCount ColdCount PaddedSizeof AllocCount MaxAlloc
+----                               -------- --------- ------------ ---------- --------
+test-volume-server:fd_t                0     16384           92         57        5
+test-volume-server:dentry_t           59       965           84         59       59
+test-volume-server:inode_t            60       964          148         60       60
+test-volume-server:rpcsvc_request_t    0       525         6372        351        2
+glusterfs:struct saved_frame           0      4096          124          2        2
+glusterfs:struct rpc_req               0      4096         2236          2        2
+glusterfs:rpcsvc_request_t             1       524         6372          2        1
+glusterfs:call_stub_t                  0      1024         1220        288        1
+glusterfs:call_stack_t                 0      8192         2084        290        2
+glusterfs:call_frame_t                 0     16384          172       1728        6
+--------------------------------------------------------------------------------------
+
+Display the inode tables of the volume using the command:
+
+`# gluster volume status VOLNAME inode`
+
+For example, to display the inode tables of test-volume:
+
+--------------------------------------------------------------------------------
+# gluster volume status test-volume inode
+inode tables for volume test-volume
+----------------------------------------------
+Brick : arch:/export/1
+Active inodes:
+GFID                                            Lookups            Ref   IA type
+----                                            -------            ---   -------
+6f3fe173-e07a-4209-abb6-484091d75499                  1              9         2
+370d35d7-657e-44dc-bac4-d6dd800ec3d3                  1              1         2
+
+LRU inodes: 
+GFID                                            Lookups            Ref   IA type
+----                                            -------            ---   -------
+80f98abe-cdcf-4c1d-b917-ae564cf55763                  1              0         1
+3a58973d-d549-4ea6-9977-9aa218f233de                  1              0         1
+2ce0197d-87a9-451b-9094-9baa38121155                  1              0         2
+--------------------------------------------------------------------------------
+
+Display the open file descriptor tables of the volume using the command:
+
+`# gluster volume status VOLNAME fd`
+
+For example, to display the open file descriptor tables of test-volume:
+
+-------------------------------------------------------------------------------
+# gluster volume status test-volume fd
+
+FD tables for volume test-volume
+----------------------------------------------
+Brick : arch:/export/1
+Connection 1:
+RefCount = 0  MaxFDs = 128  FirstFree = 4
+FD Entry            PID                 RefCount            Flags              
+--------            ---                 --------            -----              
+0                   26311               1                   2                  
+1                   26310               3                   2                  
+2                   26310               1                   2                  
+3                   26311               3                   2                  
+ 
+Connection 2:
+RefCount = 0  MaxFDs = 128  FirstFree = 0
+No open fds
+ 
+Connection 3:
+RefCount = 0  MaxFDs = 128  FirstFree = 0
+No open fds
+-------------------------------------------------------------------------------
+
+FD information is not available for NFS and the self-heal daemon.
+
+Display the pending calls of the volume using the command:
+
+`# gluster volume status VOLNAME callpool`
+
+Note, each call has a call stack containing call frames.
+
+For example, to display the pending calls of test-volume:
+
+-----------------------------------------------
+# gluster volume status test-volume callpool
+
+Pending calls for volume test-volume
+----------------------------------------------
+Brick : arch:/export/1
+Pending calls: 2
+Call Stack1
+ UID    : 0
+ GID    : 0
+ PID    : 26338
+ Unique : 192138
+ Frames : 7
+ Frame 1
+  Ref Count   = 1
+  Translator  = test-volume-server
+  Completed   = No
+ Frame 2
+  Ref Count   = 0
+  Translator  = test-volume-posix
+  Completed   = No
+  Parent      = test-volume-access-control
+  Wind From   = default_fsync
+  Wind To     = FIRST_CHILD(this)->fops->fsync
+ Frame 3
+  Ref Count   = 1
+  Translator  = test-volume-access-control
+  Completed   = No
+  Parent      = repl-locks
+  Wind From   = default_fsync
+  Wind To     = FIRST_CHILD(this)->fops->fsync
+ Frame 4
+  Ref Count   = 1
+  Translator  = test-volume-locks
+  Completed   = No
+  Parent      = test-volume-io-threads
+  Wind From   = iot_fsync_wrapper
+  Wind To     = FIRST_CHILD (this)->fops->fsync
+ Frame 5
+  Ref Count   = 1
+  Translator  = test-volume-io-threads
+  Completed   = No
+  Parent      = test-volume-marker
+  Wind From   = default_fsync
+  Wind To     = FIRST_CHILD(this)->fops->fsync
+ Frame 6
+  Ref Count   = 1
+  Translator  = test-volume-marker
+  Completed   = No
+  Parent      = /export/1
+  Wind From   = io_stats_fsync
+  Wind To     = FIRST_CHILD(this)->fops->fsync
+ Frame 7
+  Ref Count   = 1
+  Translator  = /export/1
+  Completed   = No
+  Parent      = test-volume-server
+  Wind From   = server_fsync_resume
+  Wind To     = bound_xl->fops->fsync
+-----------------------------------------------
+
+[[sect-Troubleshooting_issues_in_the_Red_Hat_Storage_Trusted_Storage_Pool]]
+= Troubleshooting issues in the {{ book.productTitle }} Trusted Storage
+Pool
+
+[[Troubleshooting_a_network_issue_in_the_Red_Hat_Storage_Trusted_Storage_Pool]]
+== Troubleshooting a network issue in the {{ book.productTitle }}
+Trusted Storage Pool
+
+When enabling the network components to communicate with Jumbo frames in
+a {{ book.productTitle }} Trusted Storage Pool, ensure that all the
+network components such as switches, {{ book.productTitle }} nodes etc
+are configured properly. Verify the network configuration by running the
+`ping` from one {{ book.productTitle }} node to another.
+
+If the nodes in the {{ book.productTitle }} Trusted Storage Pool or any
+other network components are not configured to fully support Jumbo
+frames, the `ping` command times out and displays the following error:
+
+---------------------------------------
+# ping -s 1600 '-Mdo'
+local error: Message too long, mtu=1500
+---------------------------------------

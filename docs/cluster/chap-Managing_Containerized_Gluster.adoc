@@ -1,0 +1,181 @@
+[[chap-Managing_Containerized_RHGS]]
+= Managing Containerized {{ book.productTitle }}
+
+With the {{ book.productTitle }} {{ book.productVersion }} release, a
+{{ book.productTitle }} service can be set up as a container on a Red Hat Enterprise
+Linux atomic host 7.2. Containers use the shared kernel concept and are
+much more efficient than hypervisors in system resource terms.
+Containers rest on top of a single Linux instance and allows
+applications to use the same Linux kernel as the system that they are
+running on. This improves the overall efficiency and reduces the space
+consumption considerably.
+
+{% if book.productTitle != "GlusterFS" %}
+Containerized {{ book.productTitle }} {{ book.productVersion }} is supported only on Red Hat
+Enterprise Linux Atomic Host 7.2. For more information about installing
+containerized {{ book.productTitle }}, see the
+https://access.redhat.com/documentation/en-US/Red_Hat_Storage/3.1/html/Installation_Guide/index.html[
+{{ book.productTitle }} 3.1 Installation Guide].
+{% endif %}
+
+______________________________________________________________________________________________________________________________________________________
+*Note*
+
+For {{ book.productTitle }} {{ book.productVersion }}, Erasure Coding, NFS-Ganesha, BitRot,
+and Data Tiering are not supported with containerized {{ book.productTitle }}.
+______________________________________________________________________________________________________________________________________________________
+
+= Prerequisites
+
+Before creating a container, execute the following steps.
+
+1.  Create the directories in the atomic host for persistent mount by
+executing the following command:
++
+--------------------------------------------------------------
+# mkdir -p /etc/glusterfs /var/lib/glusterd /var/log/glusterfs
+--------------------------------------------------------------
+2.  Ensure the bricks that are required are mounted on the atomic hosts.
+For more information see,
+<<chap-Configuring_Gluster_for_Enhancing_Performance.adoc#Brick_Configuration,
+Brick Configuration>>
+3.  If Snapshot is required, then ensure that the `dm-snapshot` kernel
+module is loaded in Atomic Host system. If it is not loaded, then load
+it by executing the following command:
++
+----------------------
+# modprobe dm_snapshot
+----------------------
+
+= Starting a Container
+
+Execute the following steps to start the container.
+
+1.  Execute the following command to run the container:
++
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# docker run -d --privileged=true --net=host --name <container-name> -v /run -v /etc/glusterfs:/etc/glusterfs:z -v /var/lib/glusterd:/var/lib/glusterd:z -v /var/log/glusterfs:/var/log/glusterfs:z -v /sys/fs/cgroup:/sys/fs/cgroup:ro -v /mnt/brick1:/mnt/container_brick1:z <image name>
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
++
+where,
+* --net=host option ensures that the container has full access to the
+network stack of the host.
+* `/mnt/brick1` is the mountpoint of the brick in the atomic host and
+`:/mnt/container_brick1` is the mountpoint of the brick in the
+container.
+* -d option starts the container in the detached mode.
++
+For example:
++
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# docker run -d --privileged=true --net=host --name glusternode1 -v /run -v /etc/glusterfs:/etc/glusterfs:z -v /var/lib/glusterd:/var/lib/glusterd:z -v /var/log/glusterfs:/var/log/glusterfs:z -v /sys/fs/cgroup:/sys/fs/cgroup:ro -v /mnt/brick1:/mnt/container_brick1:z rhgs3/rhgs-server-rhel7
+
+5ac864b5abc74a925aecc4fe9613c73e83b8c54a846c36107aa8e2960eeb97b4
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
++
+Where, 5ac864b5abc74a925aecc4fe9613c73e83b8c54a846c36107aa8e2960eeb97b4
+is the container ID.
++
+_____________________________________________________________________________________________________________________________________
+*Note*
+
+* SELinux labels are automatically reset to `svirt_sandbox_file_t` so
+that the container can interact with the Atomic Host directory.
+* In the above command, the following ensures that the gluster
+configuration are persistent.
++
+------------------------------------------------------------------------------------------------------------------
+-v /etc/glusterfs:/etc/glusterfs:z -v /var/lib/glusterd:/var/lib/glusterd -v /var/log/glusterfs:/var/log/glusterfs
+------------------------------------------------------------------------------------------------------------------
+_____________________________________________________________________________________________________________________________________
+2.  If you want to use snapshot then execute the following command:
++
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# docker run -d --privileged=true --net=host --name <container-name> -v /dev:/dev -v /run -v /etc/glusterfs:/etc/glusterfs:z -v /var/lib/glusterd:/var/lib/glusterd:z -v /var/log/glusterfs:/var/log/glusterfs:z -v /sys/fs/cgroup:/sys/fs/cgroup:ro -v /mnt/brick1:/mnt/container_brick1:z <image name>
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
++
+where, /mnt/brick1 is the mountpoint of the brick in the atomic host and
+:/mnt/container_brick1 is the mountpoint of the brick in the container.
++
+For example:
++
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# docker run -d --privileged=true --net=host --name glusternode1 -v /dev:/dev -v /run -v /etc/glusterfs:/etc/glusterfs:z -v /var/lib/glusterd:/var/lib/glusterd:z -v /var/log/glusterfs:/var/log/glusterfs:z -v /sys/fs/cgroup:/sys/fs/cgroup:ro -v /mnt/brick1:/mnt/container_brick1:z rhgs3/rhgs-server-rhel7
+
+5da2bc217c0852d2b1bfe4fb31e0181753410071584b4e38bd77d7502cd3e92b
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+3.  To verify if the container is created, execute the following
+command:
++
+------------
+# docker ps 
+------------
++
+For example:
++
+-----------------------------------------------------------------------------------------------------------------------------------------------
+# docker ps 
+
+CONTAINER ID        IMAGE               COMMAND                CREATED             STATUS                      PORTS               NAMES
+5da2bc217c08        891ea0584e94        "/usr/sbin/init"       10 seconds ago      Up 9 seconds                                    glusternode1
+-----------------------------------------------------------------------------------------------------------------------------------------------
+
+= Creating a Trusted Storage Pool
+
+Perform the following steps to create a Trusted Storage Pool:
+
+1.  Access the container using the following command:
++
+--------------------------------------------
+# docker exec -it <container-name> /bin/bash
+--------------------------------------------
++
+For example:
++
+----------------------------------------
+# docker exec -it glusternode1 /bin/bash
+----------------------------------------
+2.  To verify if glusterd is running, execute the following command:
++
+---------------------------
+# systemctl status glusterd
+---------------------------
+3.  To verify if the bricks are mounted successfully, execute the
+following command:
++
+--------------------------
+# mount |grep <brick_name>
+--------------------------
+4.  Peer probe the container to form the Trusted Storage Pool:
++
+-------------------------------------
+# gluster peer probe <atomic host IP>
+-------------------------------------
+5.  Execute the following command to verify the peer probe status:
++
+---------------------
+# gluster peer status
+---------------------
+
+= Creating a Volume
+
+Perform the following steps to create a volume.
+
+1.  To create a volume execute the following command:
++
+------------------------------------------------
+# gluster volume create <vol-name> IP:/brickpath
+------------------------------------------------
+2.  Start the volume by executing the following command:
++
+--------------------------------
+# gluster volume start <volname>
+--------------------------------
+
+= Mounting a Volume
+
+Execute the following command to mount the volume created earlier:
+
+--------------------------------------------------------------
+# mount -t glusterfs <atomic host IP>:/<vol-name> /mount/point
+--------------------------------------------------------------

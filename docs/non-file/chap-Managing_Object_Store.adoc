@@ -1,0 +1,1147 @@
+[[chap-Managing_Object_Store]]
+= Managing Object Store
+
+Object Store provides a system for data storage that enables users to
+access the same data, both as an object and as a file, thus simplifying
+management and controlling storage costs.
+
+{{ book.productTitle }} is based on glusterFS, an open source
+distributed file system. Object Store technology is built upon OpenStack
+Swift. OpenStack Swift allows users to store and retrieve files and
+content through a simple Web Service REST (Representational State
+Transfer) interface as objects. {{ book.productTitle }} uses glusterFS
+as a back-end file system for OpenStack Swift. It also leverages on
+OpenStack Swift's REST interface for storing and retrieving files over
+the web combined with glusterFS features like scalability and high
+availability, replication, and elastic volume management for data
+management at disk level.
+
+Object Store technology enables enterprises to adopt and deploy cloud
+storage solutions. It allows users to access and modify data as objects
+from a REST interface along with the ability to access and modify files
+from NAS interfaces. In addition to decreasing cost and making it faster
+and easier to access object data, it also delivers massive scalability,
+high availability and replication of object storage. Infrastructure as a
+Service (IaaS) providers can utilize Object Store technology to enable
+their own cloud storage service. Enterprises can use this technology to
+accelerate the process of preparing file-based applications for the
+cloud and simplify new application development for cloud computing
+environments.
+
+OpenStack Swift is an open source software for creating redundant,
+scalable object storage using clusters of standardized servers to store
+petabytes of accessible data. It is not a file system or real-time data
+storage system, but rather a long-term storage system for a more
+permanent type of static data that can be retrieved, leveraged, and
+updated.
+
+[[Architecture_Overview]]
+= Architecture Overview
+
+OpenStack Swift and {{ book.productTitle }} integration consists of:
+
+* OpenStack Object Storage environment.
++
+For detailed information on Object Storage, see OpenStack Object Storage
+Administration Guide available at:
+http://docs.openstack.org/admin-guide-cloud/content/ch_admin-openstack-object-storage.html[].
+* {{ book.productTitle }} environment.
++
+{{ book.productTitle }} environment consists of bricks that are used to
+build volumes. For more information on bricks and volumes, see
+<<../architecture/chap-Gluster_Volumes.adoc#Formatting_and_Mounting_Bricks,
+Formatting_and_Mounting_Bricks>>.
+
+The following diagram illustrates OpenStack Object Storage integration
+with {{ book.productTitle }}:
+
+________________________________________________________________________________________________________________________________________________________
+*Important*
+
+On Red Hat Enterprise Linux 7, enable the Object Store firewall service
+in the active zones for runtime and permanent mode using the following
+commands:
+
+To get a list of active zones, run the following command:
+
+----------------------------------
+# firewall-cmd  --get-active-zones
+----------------------------------
+
+To add ports to the active zones, run the following commands:
+
+---------------------------------------------------------------------------------------------------------------------------------
+# firewall-cmd  --zone=zone_name  --add-port=6010/tcp  --add-port=6011/tcp --add-port=6012/tcp  --add-port=8080/tcp 
+
+# firewall-cmd  --zone=zone_name --add-port=6010/tcp  --add-port=6011/tcp --add-port=6012/tcp  --add-port=8080/tcp   --permanent 
+---------------------------------------------------------------------------------------------------------------------------------
+
+Add the port number 443 `only` if your swift proxy server is configured
+with SSL. To add the port number, run the following commands:
+
+--------------------------------------------------------------
+# firewall-cmd --zone=zone_name --add-port=443/tcp
+# firewall-cmd --zone=zone_name --add-port=443/tcp --permanent
+--------------------------------------------------------------
+________________________________________________________________________________________________________________________________________________________
+
+[[Components_of_Object_Storage]]
+= Components of Object Store
+
+The major components of Object Storage are:
+
+*Proxy Server*
+
+The Proxy Server is responsible for connecting to the rest of the
+OpenStack Object Storage architecture. For each request, it looks up the
+location of the account, container, or object in the ring and routes the
+request accordingly. The public API is also exposed through the proxy
+server. When objects are streamed to or from an object server, they are
+streamed directly through the proxy server to or from the user – the
+proxy server does not spool them.
+
+*The Ring*
+
+The Ring maps swift accounts to the appropriate {{ book.productTitle }}
+volume. When other components need to perform any operation on an
+object, container, or account, they need to interact with the Ring to
+determine the correct {{ book.productTitle }} volume.
+
+*Object and Object Server*
+
+An object is the basic storage entity and any optional metadata that
+represents the data you store. When you upload data, the data is stored
+as-is (with no compression or encryption).
+
+The Object Server is a very simple storage server that can store,
+retrieve, and delete objects stored on local devices.
+
+*Container and Container Server*
+
+A container is a storage compartment for your data and provides a way
+for you to organize your data. Containers can be visualized as
+directories in a Linux system. However, unlike directories, containers
+cannot be nested. Data must be stored in a container and hence the
+objects are created within a container.
+
+The Container Server’s primary job is to handle listings of objects. The
+listing is done by querying the glusterFS mount point with a path. This
+query returns a list of all files and directories present under that
+container.
+
+*Accounts and Account Servers*
+
+The OpenStack Swift system is designed to be used by many different
+storage consumers.
+
+The Account Server is very similar to the Container Server, except that
+it is responsible for listing containers rather than objects. In Object
+Store, each {{ book.productTitle }} volume is an account.
+
+*Authentication and Access Permissions*
+
+Object Store provides an option of using an authentication service to
+authenticate and authorize user access. Once the authentication service
+correctly identifies the user, it will provide a token which must be
+passed to Object Store for all subsequent container and object
+operations.
+
+Other than using your own authentication services, the following
+authentication services are supported by Object Store:
+
+* Authenticate Object Store against an external OpenStack Keystone
+server.
++
+Each {{ book.productTitle }} volume is mapped to a single account. Each
+account can have multiple users with different privileges based on the
+group and role they are assigned to. After authenticating using
+accountname:username and password, user is issued a token which will be
+used for all subsequent REST requests.
++
+*Integration with Keystone.*
++
+When you integrate {{ book.productTitle }} Object Store with Keystone
+authentication, you must ensure that the Swift account name and
+{{ book.productTitle }} volume name are the same. It is common that
+{{ book.productTitle }} volumes are created before exposing them through the
+{{ book.productTitle }} Object Store.
++
+When working with Keystone, account names are defined by Keystone as the
+`tenant id`. You must create the {{ book.productTitle }} volume using
+the Keystone `tenant id` as the name of the volume. This means, you must
+create the Keystone tenant before creating a {{ book.productTitle }}
+Volume.
++
+______________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+*Important*
+
+{{ book.productTitle }} does not contain any Keystone server components.
+It only acts as a Keystone client. After you create a volume for
+Keystone, ensure to export this volume for accessing it using the object
+storage interface. For more information on exporting volume, see <<Exporting_the_Red_Hat_Storage_Volumes>>.
+______________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
++
+*Integration with GSwauth.*
++
+GSwauth is a Web Server Gateway Interface (WGSI) middleware that uses a
+{{ book.productTitle }} Volume itself as its backing store to maintain
+its metadata. The benefit in this authentication service is to have the
+metadata available to all proxy servers and saving the data to a
+{{ book.productTitle }} volume.
++
+To protect the metadata, the {{ book.productTitle }} volume should only
+be able to be mounted by the systems running the proxy servers. For more
+information on mounting volumes, see <<Exporting_the_Red_Hat_Storage_Volumes>>.
++
+*Integration with TempAuth.*
++
+You can also use the `TempAuth` authentication service to test
+{{ book.productTitle }} Object Store in the data center.
+
+[[Advantages_of_using_Object_Store]]
+= Advantages of using Object Store
+
+The advantages of using Object Store include:
+
+* Default object size limit of 1 TiB
+* Unified view of data across NAS and Object Storage technologies
+* High availability
+* Scalability
+* Replication
+* Elastic Volume Management
+
+[[Limitations4]]
+= Limitations
+
+This section lists the limitations of using {{ book.productTitle }}
+Object Store:
+
+* Object Name
++
+Object Store imposes the following constraints on the object name to
+maintain the compatibility with network file access:
+** Object names must not be prefixed or suffixed by a '/' character. For
+example, `a/b/`
+** Object names must not have contiguous multiple '/' characters. For
+example, `a//b`
+* Account Management
+** Object Store does not allow account management even though OpenStack
+Swift allows the management of accounts. This limitation is because
+Object Store treats `accounts` equivalent to the {{ book.productTitle }}
+volumes.
+** Object Store does not support account names (i.e. {{ book.productTitle }}
+volume names) having an underscore.
+** In Object Store, every account must map to a {{ book.productTitle }}
+volume.
+* Subdirectory Listing
++
+Headers `X-Content-Type: application/directory` and
+`X-Content-Length: 0` can be used to create subdirectory objects under a
+container, but GET request on a subdirectory would not list all the
+objects under it.
+
+[[Prerequisites-Object-Store]]
+= Prerequisites
+
+Ensure that you do the following before using {{ book.productTitle }}
+Object Store.
+
+* Ensure that the openstack-swift-* and swiftonfile packages have
+matching version numbers.
++
+------------------------------------------------
+# rpm -qa | grep swift
+openstack-swift-container-1.13.1-6.el7ost.noarch
+openstack-swift-object-1.13.1-6.el7ost.noarch
+swiftonfile-1.13.1-6.el7rhgs.noarch
+openstack-swift-proxy-1.13.1-6.el7ost.noarch
+openstack-swift-doc-1.13.1-6.el7ost.noarch
+openstack-swift-1.13.1-6.el7ost.noarch
+openstack-swift-account-1.13.1-6.el7ost.noarch
+------------------------------------------------
+* Ensure that SELinux is in permissive mode.
++
+-----------------------------------------------
+# sestatus 
+SELinux status:                 enabled
+SELinuxfs mount:                /sys/fs/selinux
+SELinux root directory:         /etc/selinux
+Loaded policy name:             targeted
+Current mode:                   permissive
+Mode from config file:          permissive
+Policy MLS status:              enabled
+Policy deny_unknown status:     allowed
+Max kernel policy version:      28
+-----------------------------------------------
++
+If the `Current mode` and `Mode from config file` fields are not set to
+`permissive`, run the following commands to set SELinux into permissive
+mode persistently, and reboot to ensure that the configuration takes
+effect.
++
+--------------
+# setenforce 1
+# reboot
+--------------
+* Ensure that the gluster-swift services are owned by and run as the
+root user, not the swift user as in a typical OpenStack installation.
++
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# cd /usr/lib/systemd/system
+# sed -i s/User=swift/User=root/ openstack-swift-proxy.service openstack-swift-account.service openstack-swift-container.service openstack-swift-object.service openstack-swift-object-expirer.service
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+* Start the memcached service:
++
+-------------------------
+# service memcached start
+-------------------------
+* Ensure that the ports for the Object, Container, Account, and Proxy
+servers are open. Note that the ports used for these servers are
+configurable. The ports listed in <<table-ports-object-store,
+Ports required for {{ book.productTitle }} Object Store>> are the default values.
++
+[[table-ports-object-store]]
+.Ports required for {{ book.productTitle }} Object Store
+[cols=",",options="header",]
+|=========================
+|Server |Port
+|Object Server |6010
+|Container Server |6011
+|Account Server |6012
+|Proxy Server (HTTPS) |443
+|Proxy Server (HTTP) |8080
+|=========================
+* Create and mount a {{ book.productTitle }} volume for use as a Swift
+Account. For information on creating {{ book.productTitle }} volumes,
+see <<../architecture/chap-Gluster_Volumes.adoc#chap-Gluster_Volumes,
+{{ book.productTitle }} volumes>>. For information on mounting {{ book.productTitle }} volumes, see
+<<../architecture/chap-Accessing_Data_-_Setting_Up_Clients.adoc#chap-Accessing_Data_-_Setting_Up_Clients,
+Setting up clients>>.
+
+[[sect-Configuring_the_Object_Store]]
+= Configuring the Object Store
+
+This section provides instructions on how to configure Object Store in
+your storage environment.
+
+________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+*Warning*
+
+When you install {{ book.productTitle }} 3.1, the `/etc/swift` directory
+would contain both `*.conf` extension and `*.conf-gluster` files. You
+must delete the `*.conf` files and create new configuration files based
+on `*.conf-gluster` template. Otherwise, inappropriate python packages
+will be loaded and the component may not work as expected.
+
+If you are upgrading to {{ book.productTitle }} 3.1, the older
+configuration files will be retained and new configuration files will be
+created with `.rpmnew ` extension. You must ensure to delete `.conf`
+files and folders (account-server, container-server, and object-server)
+for better understanding of the loaded configuration.
+________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+
+[[sect-Configuring_a_Proxy_Server]]
+== Configuring a Proxy Server
+
+Create a new configuration file /`etc/swift/proxy-server.conf` by
+referencing the template file available at
+`/etc/swift/proxy-server.conf-gluster`.
+
+[[Configuring_a_Proxy_Server_for_HTTPS]]
+=== Configuring a Proxy Server for HTTPS
+
+By default, proxy server only handles HTTP requests. To configure the
+proxy server to process HTTPS requests, perform the following steps:
+
+1.  Create self-signed cert for SSL using the following commands:
++
+--------------------------------------------------------------
+# cd /etc/swift
+# openssl req -new -x509 -nodes -out cert.crt -keyout cert.key
+--------------------------------------------------------------
+2.  Add the following lines to `/etc/swift/proxy-server.conf `under
+[DEFAULT]
++
+--------------------------------
+bind_port = 443
+ cert_file = /etc/swift/cert.crt
+ key_file = /etc/swift/cert.key
+--------------------------------
+
+__________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+*Important*
+
+When Object Storage is deployed on two or more machines, not all nodes
+in your trusted storage pool are used. Installing a load balancer
+enables you to utilize all the nodes in your trusted storage pool by
+distributing the proxy server requests equally to all storage nodes.
+
+Memcached allows nodes' states to be shared across multiple proxy
+servers. Edit the `memcache_servers` configuration option in the
+`proxy-server.conf` and list all memcached servers.
+
+Following is an example listing the memcached servers in the
+`proxy-server.conf` file.
+
+---------------------------------------------------------------------------
+[filter:cache]
+use = egg:swift#memcache
+memcache_servers = 192.168.1.20:11211,192.168.1.21:11211,192.168.1.22:11211
+---------------------------------------------------------------------------
+
+The port number on which the memcached server is listening is 11211. You
+must ensure to use the same sequence for all configuration files.
+__________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+
+[[sect-Configuring_the_Authentication_Service]]
+== Configuring the Authentication Service
+
+This section provides information on configuring `Keystone, GSwauth,`
+and `TempAuth` authentication services.
+
+[[Integrating_with_the_Keystone_Authentication_Service]]
+=== Integrating with the Keystone Authentication Service
+
+* To configure Keystone, add `authtoken` and `keystoneauth` to
+`/etc/swift/proxy-server.conf` pipeline as shown below:
++
+---------------------------------------------------------------------------------------------------------
+[pipeline:main]
+pipeline = catch_errors healthcheck proxy-logging cache authtoken keystoneauth proxy-logging proxy-server
+---------------------------------------------------------------------------------------------------------
+* Add the following sections to `/etc/swift/proxy-server.conf` file by
+referencing the example below as a guideline. You must substitute the
+values according to your setup:
++
+--------------------------------------------------------------------------
+[filter:authtoken]
+paste.filter_factory = keystoneclient.middleware.auth_token:filter_factory
+signing_dir = /etc/swift
+auth_host = keystone.server.com
+auth_port = 35357
+auth_protocol = http
+auth_uri = http://keystone.server.com:5000
+# if its defined
+admin_tenant_name = services
+admin_user = swift
+admin_password = adminpassword
+delay_auth_decision = 1
+
+[filter:keystoneauth]
+use = egg:swift#keystoneauth
+operator_roles = admin, SwiftOperator
+is_admin = true
+cache = swift.cache
+--------------------------------------------------------------------------
+
+*Verify the Integrated Setup.*
+
+Verify that the {{ book.productTitle }} Object Store has been configured
+successfully by running the following command:
+
+-----------------------------------------------------------------------------------------
+$ swift -V 2 -A http://keystone.server.com:5000/v2.0 -U tenant_name:user -K password stat
+-----------------------------------------------------------------------------------------
+
+[[sect-Integrating_with_the_GSwauth_Authentication_Service]]
+=== Integrating with the GSwauth Authentication Service
+
+*Integrating GSwauth.*
+
+Perform the following steps to integrate GSwauth:
+
+1.  Create and start a {{ book.productTitle }} volume to store metadata.
++
+---------------------------------------------
+# gluster volume create NEW-VOLNAME NEW-BRICK
+# gluster volume start NEW-VOLNAME
+---------------------------------------------
++
+For example:
++
+--------------------------------------------------------
+# gluster volume create gsmetadata server1:/rhgs/brick1 
+# gluster volume start gsmetadata
+--------------------------------------------------------
+2.  Run `gluster-swift-gen-builders` tool with all the volumes to be
+accessed using the Swift client including `gsmetadata` volume:
++
+-----------------------------------------------------
+# gluster-swift-gen-builders gsmetadata other volumes
+-----------------------------------------------------
+3.  Edit the `/etc/swift/proxy-server.conf` pipeline as shown below:
++
+--------------------------------------------------
+[pipeline:main]
+pipeline = catch_errors cache gswauth proxy-server
+--------------------------------------------------
+4.  Add the following section to `/etc/swift/proxy-server.conf` file by
+referencing the example below as a guideline. You must substitute the
+values according to your setup.
++
+-------------------------------
+[filter:gswauth]
+use = egg:gluster_swift#gswauth
+set log_name = gswauth
+super_admin_key = gswauthkey
+metadata_volume = gsmetadata
+auth_type = sha1
+auth_type_salt = swauthsalt
+-------------------------------
++
+_______________________________________________________________________________________________________________________
+*Important*
+
+You must ensure to secure the `proxy-server.conf` file and the
+`super_admin_key` option to prevent unprivileged access.
+_______________________________________________________________________________________________________________________
+5.  Restart the proxy server by running the following command:
++
+--------------------------
+# swift-init proxy restart
+--------------------------
+
+*Advanced Options:.*
+
+You can set the following advanced options for GSwauth WSGI filter:
+
+* default-swift-cluster: The default storage-URL for the newly created
+accounts. When you attempt to authenticate for the first time, the
+access token and the storage-URL where data for the given account is
+stored will be returned.
+* token_life: The set default token life. The default value is 86400 (24
+hours).
+* max_token_life: The maximum token life. You can set a token lifetime
+when requesting a new token with header `x-auth-token-lifetime`. If the
+passed in value is greater than the `max_token_life`, then the
+`max_token_life` value will be used.
+
+*GSwauth Common Options of CLI Tools.*
+
+GSwauth provides CLI tools to facilitate managing accounts and users.
+All tools have some options in common:
+
+* -A, --admin-url: The URL to the auth. The default URL is
+` http://127.0.0.1:8080/auth/`.
+* -U, --admin-user: The user with administrator rights to perform
+action. The default user role is `.super_admin`.
+* -K, --admin-key: The key for the user with administrator rights to
+perform the action. There is no default value.
+
+*Preparing {{ book.productTitle }} Volumes to Save Metadata.*
+
+Prepare the {{ book.productTitle }} volume for `gswauth` to save its
+metadata by running the following command:
+
+-----------------------
+# gswauth-prep [option]
+-----------------------
+
+For example:
+
+-------------------------------------------------------------
+# gswauth-prep -A http://10.20.30.40:8080/auth/ -K gswauthkey
+-------------------------------------------------------------
+
+[[Managing_Account_Services_in_GSwauth]]
+==== Managing Account Services in GSwauth
+
+*Creating Accounts.*
+
+Create an account for GSwauth. This account is mapped to a
+{{ book.productTitle }} volume.
+
+---------------------------------------------
+# gswauth-add-account [option] <account_name>
+---------------------------------------------
+
+For example:
+
+--------------------------------------------------
+# gswauth-add-account -K gswauthkey <account_name>
+--------------------------------------------------
+
+*Deleting an Account.*
+
+You must ensure that all users pertaining to this account must be
+deleted before deleting the account. To delete an account:
+
+------------------------------------------------
+# gswauth-delete-account [option] <account_name>
+------------------------------------------------
+
+For example:
+
+-------------------------------------------
+# gswauth-delete-account -K gswauthkey test
+-------------------------------------------
+
+*Setting the Account Service.*
+
+Sets a service URL for an account. User with` reseller admin` role only
+can set the service URL. This command can be used to change the default
+storage URL for a given account. All accounts will have the same
+storage-URL as default value, which is set using `default-swift-cluster`
+option.
+
+--------------------------------------------------------------------------
+# gswauth-set-account-service [options] <account> <service> <name> <value>
+--------------------------------------------------------------------------
+
+For example:
+
+-----------------------------------------------------------------------------------------------
+# gswauth-set-account-service -K gswauthkey test storage local http://newhost:8080/v1/AUTH_test
+-----------------------------------------------------------------------------------------------
+
+[[Managing_User_Services_in_GSwauth]]
+==== Managing User Services in GSwauth
+
+*User Roles.*
+
+The following user roles are supported in GSwauth:
+
+* A regular user has no rights. Users must be given both read and write
+privileges using Swift ACLs.
+* The `admin` user is a super-user at the account level. This user can
+create and delete users for that account. These members will have both
+write and read privileges to all stored objects in that account.
+* The `reseller admin` user is a super-user at the cluster level. This
+user can create and delete accounts and users and has read and write
+privileges to all accounts under that cluster.
+* GSwauth maintains its own swift account to store all of its metadata
+on accounts and users. The `.super_admin` role provides access to
+GSwauth own swift account and has all privileges to act on any other
+account or user.
+
+*User Access Matrix.*
+
+The following table provides user access right information.
+
+.User Access Matrix
+[cols=",,,,,,,,,",options="header",]
+|=======================================================================
+|Role/Group |get list of accounts |get Acccount Details |Create Account
+|Delete Account |Get User Details |Create admin user |Create
+reseller_admin user |Create regular user |Delete admin user
+|.super_admin (username) |X |X |X |X |X |X |X |X |X
+
+|.reseller_admin (group) |X |X |X |X |X |X | |X |X
+
+|.admin (group) | |X | | |X |X | |X |X
+
+|regular user (type) | | | | | | | | |
+|=======================================================================
+
+*Creating Users.*
+
+You can create an user for an account that does not exist. The account
+will be created before creating the user.
+
+You must add `-r` flag to create a `reseller admin` user and `-a` flag
+to create an `admin` user. To change the password or role of the user,
+you can run the same command with the new option.
+
+------------------------------------------------------------
+# gswauth-add-user [option] <account_name> <user> <password>
+------------------------------------------------------------
+
+For example
+
+---------------------------------------------------
+# gswauth-add-user -K gswauthkey -a test ana anapwd
+---------------------------------------------------
+
+*Deleting a User.*
+
+Delete a user by running the following command:
+
+--------------------------------------------------
+gswauth-delete-user [option] <account_name> <user>
+--------------------------------------------------
+
+For example
+
+-----------------------------------------
+gwauth-delete-user -K gswauthkey test ana
+-----------------------------------------
+
+*Authenticating a User with the Swift Client.*
+
+There are two methods to access data using the Swift client. The first
+and simple method is by providing the user name and password everytime.
+The swift client will acquire the token from gswauth.
+
+For example:
+
+--------------------------------------------------------------------------------------------
+$ swift -A http://127.0.0.1:8080/auth/v1.0 -U test:ana -K anapwd upload container1 README.md
+--------------------------------------------------------------------------------------------
+
+The second method is a two-step process, first you must authenticate
+with a username and password to obtain a token and the storage URL.
+Then, you can make the object requests to the storage URL with the given
+token.
+
+It is important to remember that tokens expires, so the authentication
+process needs to be repeated very often.
+
+Authenticate a user with the cURL command:
+
+----------------------------------------------------------------------------------------------------
+curl -v -H 'X-Storage-User: test:ana' -H 'X-Storage-Pass: anapwd' -k http://localhost:8080/auth/v1.0
+...
+< X-Auth-Token: AUTH_tk7e68ef4698f14c7f95af07ab7b298610
+< X-Storage-Url: http://127.0.0.1:8080/v1/AUTH_test
+...
+----------------------------------------------------------------------------------------------------
+
+Now, you use the given token and storage URL to access the
+object-storage using the Swift client:
+
+-----------------------------------------------------------------------------------------------------------------------------------------------
+$ swift --os-auth-token=AUTH_tk7e68ef4698f14c7f95af07ab7b298610 --os-storage-url=http://127.0.0.1:8080/v1/AUTH_test upload container1 README.md
+README.md
+bash-4.2$ 
+bash-4.2$ swift --os-auth-token=AUTH_tk7e68ef4698f14c7f95af07ab7b298610 --os-storage-url=http://127.0.0.1:8080/v1/AUTH_test list container1
+README.md
+-----------------------------------------------------------------------------------------------------------------------------------------------
+
+________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+*Important*
+
+`Reseller admins` must always use the second method to acquire a token
+to get access to other accounts other than his own. The first method of
+using the username and password will give them access only to their own
+accounts.
+________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+
+[[Managing_Accounts_and_Users_Information]]
+==== Managing Accounts and Users Information
+
+*Obtaining Accounts and User Information.*
+
+You can obtain the accounts and users information including stored
+password.
+
+-----------------------------------------
+# gswauth-list [options] [account] [user]
+-----------------------------------------
+
+For example:
+
+-------------------------------------
+# gswauth-list -K gswauthkey test ana
++----------+
+|  Groups  |
++----------+
+| test:ana |
+|   test   |
+|  .admin  |
++----------+
+-------------------------------------
+
+* If [account] and [user] are omitted, all the accounts will be listed.
+* If [account] is included but not [user], a list of users within that
+account will be listed.
+* If [account] and [user] are included, a list of groups that the user
+belongs to will be listed.
+* If the [user] is .groups, the active groups for that account will be
+listed.
+
+The default output format is in tabular format. Adding `-p` option
+provides the output in plain text format, `-j` provides the output in
+JSON format.
+
+*Changing User Password.*
+
+You can change the password of the user, account administrator, and
+reseller_admin roles.
+
+* Change the password of a regular user by running the following
+command:
++
+----------------------------------------------------------------------------
+# gswauth-add-user -U account1:user1 -K old_passwd account1 user1 new_passwd
+----------------------------------------------------------------------------
+* Change the password of an `account administrator` by running the
+following command:
++
+-------------------------------------------------------------------------------
+# gswauth-add-user -U account1:admin -K old_passwd -a account1 admin new_passwd
+-------------------------------------------------------------------------------
+* Change the password of the `reseller_admin` by running the following
+command:
++
+---------------------------------------------------------------------------------
+# gswauth-add-user -U account1:radmin -K old_passwd -r account1 radmin new_passwd
+---------------------------------------------------------------------------------
+
+*Cleaning Up Expired Tokens.*
+
+Users with `.super_admin` role can delete the expired tokens.
+
+You also have the option to provide the expected life of tokens, delete
+all tokens or delete all tokens for a given account.
+
+----------------------------------
+# gswauth-cleanup-tokens [options]
+----------------------------------
+
+For example
+
+---------------------------------------------------
+# gswauth-cleanup-tokens -K gswauthkey --purge test
+---------------------------------------------------
+
+The tokens will be deleted on the disk but it would still persist in
+memcached.
+
+You can add the following options while cleaning up the tokens:
+
+* -t, --token-life: The expected life of tokens. The token objects
+modified before the give number of seconds will be checked for
+expiration (default: 86400).
+* --purge: Purges all the tokens for a given account whether the tokens
+have expired or not.
+* --purge-all: Purges all the tokens for all the accounts and users
+whether the tokens have expired or not.
+
+[[Integrating_with_the_TempAuth_Authentication_Service]]
+=== Integrating with the TempAuth Authentication Service
+
+_____________________________________________________________________________________________
+*Warning*
+
+TempAuth authentication service must only be used in test deployments
+and not for production.
+_____________________________________________________________________________________________
+
+TempAuth is automatically installed when you install {{ book.productTitle }}.
+TempAuth stores user and password information as `cleartext` in
+a single `proxy-server.conf` file. In your
+`/etc/swift/proxy-server.conf` file, enable TempAuth in pipeline and add
+user information in `TempAuth` section by referencing the below example.
+
+-------------------------------------------------------------------------------------------
+[pipeline:main]
+pipeline = catch_errors healthcheck proxy-logging cache tempauth proxy-logging proxy-server
+
+[filter:tempauth]
+use = egg:swift#tempauth
+user_admin_admin = admin.admin.reseller_admin
+user_test_tester = testing .admin
+user_test_tester2 = testing2
+-------------------------------------------------------------------------------------------
+
+You can add users to the account in the following format:
+
+---------------------------------------------
+user_accountname_username = password [.admin]
+---------------------------------------------
+
+Here the `accountname` is the {{ book.productTitle }} volume used to
+store objects.
+
+You must restart the Object Store services for the configuration changes
+to take effect. For information on restarting the services, see <<Starting_and_Stopping_Server>>.
+
+[[Configuring_an_Object_Server]]
+== Configuring Object Servers
+
+Create a new configuration file /`etc/swift/object.server.conf` by
+referencing the template file available at
+`/etc/swift/object-server.conf-gluster`.
+
+[[Configuring_a_Container_Server]]
+== Configuring Container Servers
+
+Create a new configuration file /`etc/swift/container-server.conf` by
+referencing the template file available at
+`/etc/swift/container-server.conf-gluster`.
+
+[[Configuring_an_Account_Server]]
+== Configuring Account Servers
+
+Create a new configuration file /`etc/swift/account-server.conf` by
+referencing the template file available at
+`/etc/swift/account-server.conf-gluster`.
+
+[[Configuring_Swift_Object_and_Container_Constrains]]
+== Configuring Swift Object and Container Constraints
+
+Create a new configuration file` /etc/swift/swift.conf` by referencing
+the template file available at /`etc/swift/swift.conf-gluster`.
+
+[[sect-Configuring_Object_Expiration]]
+== Configuring Object Expiration
+
+The Object Expiration feature allows you to schedule automatic deletion
+of objects that are stored in the {{ book.productTitle }} volume. You
+can use the object expiration feature to specify a lifetime for specific
+objects in the volume; when the lifetime of an object expires, the
+object store would automatically quit serving that object and would
+shortly thereafter remove the object from the {{ book.productTitle }}
+volume. For example, you might upload logs periodically to the volume,
+and you might need to retain those logs for only a specific amount of
+time.
+
+The client uses the X-Delete-At or X-Delete-After headers during an
+object PUT or POST and the {{ book.productTitle }} volume would
+automatically quit serving that object.
+
+__________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+*Note*
+
+Expired objects appear in container listings until they are deleted by
+the `object-expirer` daemon. This is an expected behavior.
+
+A DELETE object request on an expired object would delete the object
+from {{ book.productTitle }} volume (if it is yet to be deleted by the
+object expirer daemon). However, the client would get a _404 (Not
+Found)_ status in return. This is also an expected behavior.
+__________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+
+[[Setting_Up_Object_Expiration]]
+=== Setting Up Object Expiration
+
+Object expirer uses a separate account (a {{ book.productTitle }}
+volume) named `gsexpiring` for managing object expiration. Hence, you
+must create a {{ book.productTitle }} volume and name it as
+`gsexpiring`.
+
+Create a new configuration file `/etc/swift/object.expirer.conf` by
+referencing the template file available at
+`/etc/swift/object-expirer.conf-gluster`.
+
+[[Using_Object_Expiration]]
+=== Using Object Expiration
+
+When you use the X-Delete-At or X-Delete-After headers during an object
+PUT or POST, the object is scheduled for deletion. The {{ book.productTitle }}
+volume would automatically quit serving that object at the
+specified time and will shortly thereafter remove the object from the
+{{ book.productTitle }} volume.
+
+Use PUT operation while uploading a new object. To assign expiration
+headers to existing objects, use the POST operation.
+
+*X-Delete-At header.*
+
+The X-Delete-At header requires a UNIX epoch timestamp, in integer form.
+For example, 1418884120 represents Thu, 18 Dec 2014 06:27:31 GMT. By
+setting the header to a specific epoch time, you indicate when you want
+the object to expire, not be served, and be deleted completely from the
+{{ book.productTitle }} volume. The current time in Epoch notation can
+be found by running this command:
+
+----------
+$ date +%s
+----------
+
+* Set the object expiry time during an object PUT with X-Delete-At
+header using cURL:
++
+----------------------------------------------------------------------------------------------------------------
+curl -v -X PUT -H 'X-Delete-At: 1392013619' http://127.0.0.1:8080/v1/AUTH_test/container1/object1 -T ./localfile
+----------------------------------------------------------------------------------------------------------------
++
+Set the object expiry time during an object PUT with X-Delete-At header
+using swift client:
++
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+swift --os-auth-token=AUTH_tk99a39aecc3dd4f80b2b1e801d00df846 --os-storage-url=http://127.0.0.1:8080/v1/AUTH_test upload container1 ./localfile --header 'X-Delete-At: 1392013619'
+   
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+*X-Delete-After.*
+
+The X-Delete-After header takes an integer number of seconds that
+represents the amount of time from now when you want the object to be
+deleted.
+
+* Set the object expiry time with an object PUT with X-Delete-After
+header using cURL:
++
+-------------------------------------------------------------------------------------------------------------
+curl -v -X PUT -H 'X-Delete-After: 3600' http://127.0.0.1:8080/v1/AUTH_test/container1/object1 -T ./localfile
+-------------------------------------------------------------------------------------------------------------
++
+Set the object expiry time with an object PUT with X-Delete-At header
+using swift client:
++
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+swift --os-auth-token=AUTH_tk99a39aecc3dd4f80b2b1e801d00df846 --os-storage-url=http://127.0.0.1:8080/v1/AUTH_test upload container1 ./localfile --header 'X-Delete-After: 3600'
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+[[Running_Object_Expirer_Service]]
+=== Running Object Expirer Service
+
+The object-expirer service runs once in every 300 seconds, by default.
+You can modify the duration by configuring `interval` option in
+`/etc/swift/object-expirer.conf` file. For every pass it makes, it
+queries the gsexpiring account for **tracker objects**. Based on the
+timestamp and path present in the name of **tracker objects**,
+object-expirer deletes the actual object and the corresponding tracker
+object.
+
+To start the object-expirer service:
+
+---------------------------------
+# swift-init object-expirer start
+---------------------------------
+
+To run the object-expirer once:
+
+-----------------------------------------------------------
+# swift-object-expirer -o -v /etc/swift/object-expirer.conf
+-----------------------------------------------------------
+
+[[Exporting_the_Red_Hat_Storage_Volumes]]
+== Exporting the {{ book.productTitle }} Volumes
+
+After creating configuration files, you must now add configuration
+details for the system to identify the {{ book.productTitle }} volumes
+to be accessible as Object Store. These configuration details are added
+to the ring files. The ring files provide the list of {{ book.productTitle }}
+volumes to be accessible using the object storage interface to
+the `Swift on File` component.
+
+Create the ring files for the current configurations by running the
+following command:
+
+-----------------------------------------------
+# cd /etc/swift
+# gluster-swift-gen-builders VOLUME [VOLUME...]
+-----------------------------------------------
+
+For example,
+
+-------------------------------------------------------
+# cd /etc/swift
+# gluster-swift-gen-builders testvol1 testvol2 testvol3
+-------------------------------------------------------
+
+Here testvol1, testvol2, and testvol3 are the {{ book.productTitle }}
+volumes which will be mounted locally under the directory mentioned in
+the object, container, and account configuration files (default value is
+`/mnt/gluster-object`). The default value can be changed to a different
+path by changing the` devices` configurable option across all _account,
+container, and object_ configuration files. The path must contain
+{{ book.productTitle }} volumes mounted under directories having the same
+names as volume names. For example, if `devices` option is set to
+`/home`, it is expected that the volume named `testvol1` be mounted at
+`/home/testvol1`.
+
+Note that all the volumes required to be accessed using the Swift
+interface must be passed to the `gluster-swift-gen-builders` tool even
+if it was previously added. The `gluster-swift-gen-builders` tool
+creates new ring files every time it runs successfully.
+
+To remove a VOLUME, run `gluster-swift-gen-builders` only with the
+volumes which are required to be accessed using the Swift interface.
+
+For example, to remove the `testvol2` volume, run the following command:
+
+----------------------------------------------
+# gluster-swift-gen-builders testvol1 testvol3
+----------------------------------------------
+
+You must restart the Object Store services after creating the new ring
+files.
+
+[[Starting_and_Stopping_Server]]
+== Starting and Stopping Server
+
+You must start or restart the server manually whenever you update or
+modify the configuration files. These processes must be owned and run by
+the root user.
+
+* To start the server, run the following command:
++
+-----------------------
+# swift-init main start
+-----------------------
+* To stop the server, run the following command:
++
+----------------------
+# swift-init main stop
+----------------------
+* To restart the server, run the following command:
++
+-------------------------
+# swift-init main restart
+-------------------------
+
+[[Starting_the_Services_Automatically]]
+= Starting the Services Automatically
+
+To configure the gluster-swift services to start automatically when the
+system boots, run the following commands:
+
+On Red Hat Enterprise Linux 6:
+
+---------------------------------------------
+# chkconfig memcached on
+# chkconfig openstack-swift-proxy on
+# chkconfig openstack-swift-account on
+# chkconfig openstack-swift-container on
+# chkconfig openstack-swift-object on
+# chkconfig openstack-swift-object-expirer on
+---------------------------------------------
+
+On Red Hat Enterprise Linux 7:
+
+---------------------------------------------------------
+# systemctl enable openstack-swift-proxy.service
+# systemctl enable openstack-swift-account.service
+# systemctl enable openstack-swift-container.service
+# systemctl enable openstack-swift-object.service
+# systemctl enable openstack-swift-object-expirer.service
+# systemctl enable openstack-swift-object-expirer.service
+---------------------------------------------------------
+
+Configuring the gluster-swift services to start at boot time by using
+the `systemctl` command may require additional configuration. Refer to
+https://access.redhat.com/solutions/2043773[] for details if you
+encounter problems.
+
+________________________________________________________________________________________________________
+*Important*
+
+You must restart all Object Store services servers whenever you change
+the configuration and ring files.
+________________________________________________________________________________________________________
+
+[[sect-Working_with_the_Object_Store]]
+= Working with the Object Store
+
+For more information on Swift operations, see OpenStack Object Storage
+API Reference Guide available at
+http://docs.openstack.org/api/openstack-object-storage/1.0/content/[] .
+
+[[Creating_Containers_and_Objects]]
+== Creating Containers and Objects
+
+Creating container and objects in {{ book.productTitle }} Object Store
+is very similar to OpenStack swift. For more information on Swift
+operations, see OpenStack Object Storage API Reference Guide available
+at
+http://docs.openstack.org/api/openstack-object-storage/1.0/content/[].
+
+[[Creating_Subdirectory_under_Containers]]
+== Creating Subdirectory under Containers
+
+You can create a subdirectory object under a container using the headers
+`Content-Type: application/directory` and `Content-Length: 0`. However,
+the current behavior of Object Store returns `200 OK` on a `GET` request
+on subdirectory but this does not list all the objects under that
+subdirectory.
+
+[[Working_with_Swift_ACLs]]
+== Working with Swift ACLs
+
+Swift ACLs work with users and accounts. ACLs are set at the container
+level and support lists for read and write access. For more information
+on Swift ACLs, see
+http://docs.openstack.org/user-guide/content/managing-openstack-object-storage-with-swift-cli.html[].

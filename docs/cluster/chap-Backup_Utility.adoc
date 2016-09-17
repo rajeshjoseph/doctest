@@ -1,0 +1,204 @@
+[[chap-Backup_Utility]]
+= {{ book.productTitle }} Utilities
+
+Glusterfind is a utility that provides the list of files that are
+modified between the previous backup session and the current period. The
+commands can be executed at regular intervals to retrieve the list.
+Multiple sessions for the same volume can be present for different use
+cases. The changes that are recorded are, new file/directories,
+data/metadata modifications, rename, and deletes.
+
+= Glusterfind Configuration Options
+
+The following is the list configuration options available in
+Glusterfind:
+
+* Glusterfind Create
+* Glusterfind Pre
+* Glusterfind Post
+* Glusterfind List
+* Glusterfind Delete
+
+_______________________________________________________________________________________________________________________________________________________________________________________________________________
+*Note*
+
+All the glusterfind configuration commands such as, glusterfind pre,
+glusterfind post, glusterfind list, and glusterfind delete for a session
+have to be executed only on the node on which session is created.
+_______________________________________________________________________________________________________________________________________________________________________________________________________________
+
+*Glusterfind Create.*
+
+To create a session for a particular instance in the volume, execute the
+following command:
+
+------------------------------------------------------------------------------------------
+glusterfind create [-h] [--debug] [--force] <SessionName> <volname> [--reset-session-time]
+------------------------------------------------------------------------------------------
+
+where,
+
+--force: is executed when a new node/brick is added to the volume .
+
+--reset-session-time: forces reset of the session time. The next
+incremental run will start from this time.
+
+--help OR -h: Used to display help for the command.
+
+SessionName: Unique name of a session.
+
+volname: Name of the volume for which the `create` command is executed.
+
+For example:
+
+------------------------------------------
+# glusterfind create sess_vol1 vol1
+Session sess_vol1 created with volume vol1
+------------------------------------------
+
+*Glusterfind Pre.*
+
+To retrieve the list of modified files and directories and store it in
+the outfile, execute the following command:
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+glusterfind pre [--debug] [--disable-partial] [--output-prefix OUTPUT_PREFIX] [--no-encode] [--regenerate-outfile] [-h] <session> <volname> <outfile>
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+
+where,
+
+--disable-partial: Disables the partial-find feature that is enabled by
+default.
+
+--output-prefix OUTPUT_PREFIX: Prefix to the path/name that is specified
+in the outfile.
+
+--regenerate-outfile: Regenerates a new outfile and discards the outfile
+generated from the last pre command.
+
+--no-encode: The file paths are encoded by default in the output file.
+This option disables encoding of file paths.
+
+--help OR -h: Displays help for the command
+
+session: Unique name of a session.
+
+volname: Name of the volume for which the `pre` command is executed.
+
+outfile: Incremental list of modified files.
+
+For example:
+
+-------------------------------------------------
+# glusterfind pre sess_vol1 vol1 /tmp/outfile.txt
+Generated output file /tmp/outfile.txt
+-------------------------------------------------
+
+_______________________________________________________________________________________________________________________________________________________________
+*Note*
+
+The output format is <TYPE> <PATH1> <PATH2>. Possible type values are,
+NEW, MODIFY, DELETE and RENAME. PATH2 is applicable only if type is
+RENAME. For example:
+
+-------------------------------
+NEW file1
+NEW dir1%2Ffile2
+MODIFY dir3%2Fdir4%2Ftest3
+RENAME test1 dir1%2F%2Ftest1new
+DELETE test2 
+-------------------------------
+
+The example output with `--no-encode` option
+
+--------------------------
+NEW file1
+NEW dir1/file2
+MODIFY dir3/dir4/test3
+RENAME test1 dir1/test1new
+DELETE test2
+--------------------------
+_______________________________________________________________________________________________________________________________________________________________
+
+*Glusterfind Post:.*
+
+The following command is run to update the session time:
+
+-------------------------------------------------------
+glusterfind post [-h] [--debug] <SessionName> <volname>
+-------------------------------------------------------
+
+where,
+
+SessionName: Unique name of a session.
+
+volname: Name of the volume for which the `post` command is executed.
+
+For example:
+
+------------------------------------------
+# glusterfind post sess_vol1 vol1
+Session sess_vol1 with volume vol1 updated
+------------------------------------------
+
+*Glusterfind List:.*
+
+To list all the active sessions and the corresponding volumes present in
+the cluster, execute the following command:
+
+---------------------------------------------------------------------
+glusterfind list [-h] [--session SESSION] [--volume VOLUME] [--debug]
+---------------------------------------------------------------------
+
+where,
+
+--session SESSION: Displays the information related to that session
+
+--volume VOLUME: Displays all the active sessions corresponding to that
+volume
+
+--help OR -h: Displays help for the command
+
+For example:
+
+--------------------------------------------------
+# glusterfind list
+ SESSION VOLUME SESSION TIME
+ --------------------------------------------------
+ sess_vol1 vol1 2015-06-22 22:22:53
+--------------------------------------------------
+
+*Glusterfind Delete:.*
+
+To clear out all the session information associated with that particular
+session, execute the following command:
+
+Ensure, no further backups are expected to be taken in a particular
+session.
+
+----------------------------------------------------------
+glusterfind delete [-h] [--debug] <SessionName> <volname> 
+----------------------------------------------------------
+
+where,
+
+SessionName: Unique name of a session.
+
+volname: Name of the volume for which the `delete` command is executed.
+
+For example:
+
+------------------------------------------
+# glusterfind delete sess_vol1 vol1
+Session sess_vol1 with volume vol1 deleted
+------------------------------------------
+
+== Adding or Replacing a Brick from an Existing Glusterfind Session
+
+When a new brick is added or an existing brick is replaced, execute the
+`glusterfind create` command with `force` for the existing session to
+work. For example:
+
+-----------------------------------------------------
+# glusterfind create existing-session volname --force
+-----------------------------------------------------

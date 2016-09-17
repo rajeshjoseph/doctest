@@ -1,0 +1,3351 @@
+[[chap-Managing_Red_Hat_Storage_Volumes]]
+= Managing {{ book.productTitle }} Volumes
+
+This chapter describes how to perform common volume management
+operations on the {{ book.productTitle }} volumes.
+
+[[Configuring_Volume_Options]]
+= Configuring Volume Options
+
+__________________________________________________________________________
+*Note*
+
+Volume options can be configured while the trusted storage pool is
+online.
+__________________________________________________________________________
+
+The current settings for a volume can be viewed using the following
+command:
+
+-----------------------------
+# gluster volume info VOLNAME
+-----------------------------
+
+Volume options can be configured using the following command:
+
+---------------------------------------------
+# gluster volume set VOLNAME OPTION PARAMETER
+---------------------------------------------
+
+For example, to specify the performance cache size for `test-volume`:
+
+-------------------------------------------------------------
+# gluster volume set test-volume performance.cache-size 256MB
+Set volume successful
+-------------------------------------------------------------
+
+The following table lists available volume options along with their
+description and default value.
+
+______________________________________________________________________________________________________________
+*Note*
+
+The default values are subject to change, and may not be the same for
+all versions of {{ book.productTitle }}.
+______________________________________________________________________________________________________________
+
+[cols=",,,",options="header",]
+|=======================================================================
+|Option |Value Description |Allowed Values |Default Value
+|auth.allow |IP addresses or hostnames of the clients which are allowed
+to access the volume. |Valid hostnames or IP addresses, which includes
+wild card patterns including *. For example, `192.168.1.*`. A list of
+comma separated addresses is acceptable, but a single hostname must not
+exceed 256 characters. |* (allow all)
+
+|auth.reject |IP addresses or hostnames of the clients which are denied
+access to the volume. |Valid hostnames or IP addresses, which includes
+wild card patterns including *. For example, `192.168.1.*`. A list of
+comma separated addresses is acceptable, but a single hostname must not
+exceed 256 characters. |none (reject none)
+
+a|
+_______________________________________________________________________________________________________________________________________________________________
+*Note*
+
+Using `auth.allow` and `auth.reject` options, you can control access of
+only glusterFS FUSE-based clients. Use `nfs.rpc-auth-*` options for NFS
+access control.
+_______________________________________________________________________________________________________________________________________________________________
+
+|changelog |Enables the changelog translator to record all the file
+operations. |on | off |off
+
+|client.event-threads |Specifies the number of network connections to be
+handled simultaneously by the client processes accessing a
+{{ book.productTitle }} node. |1 - 32 |2
+
+|server.event-threads |Specifies the number of network connections to be
+handled simultaneously by the server processes hosting a
+{{ book.productTitle }} node. |1 - 32 |2
+
+|cluster.consistent-metadata |If set to On, the readdirp function in
+Automatic File Replication feature will always fetch metadata from their
+respective read children as long as it holds the good copy (the copy
+that does not need healing) of the file/directory. However, this could
+cause a reduction in performance where readdirps are involved. |on | off
+|off
+
+a|
+_______________________________________________________________________________________________________________________________________________________
+*Note*
+
+After `cluster.consistent-metadata` option is set to On, you must ensure
+to unmount and mount the volume at the clients for this option to take
+effect.
+_______________________________________________________________________________________________________________________________________________________
+
+|cluster.min-free-disk |Specifies the percentage of disk space that must
+be kept free. This may be useful for non-uniform bricks. |Percentage of
+required minimum free disk space. |10%
+
+|cluster.op-version |Allows you to set the operating version of the
+cluster. The op-version number cannot be downgraded and is set for all
+the volumes. Also the op-version does not appear when you execute the
+gluster volume info command. |3000z | 30703 | 30706 |Default value is
+3000z after an upgrade from {{ book.productTitle }} 3.0 or 30703 after
+upgrade from RHGS 3.1.1. Value is set to 30706 for a new cluster
+deployment.
+
+|cluster.self-heal-daemon |Specifies whether proactive self-healing on
+replicated volumes is activated. |on | off |on
+
+|cluster.background-self-heal-count |The maximum number of heal
+operations that can occur simultaneously. Requests in excess of this
+number are stored in a queue whose length is defined by
+`cluster.heal-wait-queue-leng`. |0–256 |8
+
+|cluster.heal-wait-queue-leng |The maximum number of requests for heal
+operations that can be queued when heal operations equal to
+`cluster.background-self-heal-count` are already in progress. If more
+heal requests are made when this queue is full, those heal requests are
+ignored. |0-10000 |128
+
+|cluster.server-quorum-type |If set to `server`, this option enables the
+specified volume to participate in the server-side quorum. For more
+information on configuring the server-side quorum, see
+<<Configuring_Server-Side_Quorum>> |none | server
+|none
+
+|cluster.server-quorum-ratio |Sets the quorum percentage for the trusted
+storage pool. |0 - 100 |>50%
+
+|cluster.quorum-type |If set to `fixed`, this option allows writes to a
+file only if the number of active bricks in that replica set (to which
+the file belongs) is greater than or equal to the count specified in the
+`cluster.quorum-count` option. If set to `auto`, this option allows
+writes to the file only if the percentage of active replicate bricks is
+more than 50% of the total number of bricks that constitute that
+replica. If there are only two bricks in the replica group, the first
+brick must be up and running to allow modifications. |fixed | auto |none
+
+|cluster.quorum-count |The minimum number of bricks that must be active
+in a replica-set to allow writes. This option is used in conjunction
+with `cluster.quorum-type` =`fixed` option to specify the number of
+bricks to be active to participate in quorum. The `cluster.quorum-type`
+=` auto` option will `override` this value. |1 - `replica-count` |0
+
+|cluster.lookup-optimize |If this option, is set `ON`, enables the
+optimization of -ve lookups, by not doing a lookup on non-hashed
+sub-volumes for files, in case the hashed sub-volume does not return any
+result. This option disregards the lookup-unhashed setting, when
+enabled. | |off
+
+|cluster.read-freq-threshold |Specifies the number of reads, in a
+promotion/demotion cycle, that would mark a file `HOT` for promotion.
+Any file that has read hits less than this value will be considered as
+`COLD` and will be demoted. |0-20 |0
+
+|cluster.write-freq-threshold |Specifies the number of writes, in a
+promotion/demotion cycle, that would mark a file `HOT` for promotion.
+Any file that has write hits less than this value will be considered as
+`COLD` and will be demoted. |0-20 |0
+
+|cluster.tier-promote-frequency |Specifies how frequently the tier
+daemon must check for files to promote. |1- 172800 seconds |120 seconds
+
+|cluster.tier-demote-frequency |Specifies how frequently the tier daemon
+must check for files to demote. |1 - 172800 seconds |3600 seconds
+
+|cluster.tier-mode |If set to cache mode, promotes or demotes files
+based on whether the cache is full or not, as specified with watermarks.
+If set to test mode, periodically demotes or promotes files
+automatically based on access. |test | cache |cache
+
+|cluster.tier-max-mb |Specifies the maximum number of MB that may be
+migrated in any direction from each node in a given cycle. |1 -100000
+(100 GB) |4000 MB
+
+|cluster.tier-max-files |Specifies the maximum number of files that may
+be migrated in any direction from each node in a given cycle. |1-100000
+files |10000
+
+|cluster.watermark-hi |Upper percentage watermark for promotion. If hot
+tier fills above this percentage, no promotion will happen and demotion
+will happen with high probability. |1- 99 % |90%
+
+|cluster.watermark-low |Lower percentage watermark. If hot tier is less
+full than this, promotion will happen and demotion will not happen. If
+greater than this, promotion/demotion will happen at a probability
+relative to how full the hot tier is. |1- 99 % |75%
+
+|cluster.shd-max-threads |Specifies the number of entries that can be
+self healed in parallel on each replica by self-heal daemon. |1 - 64 |1
+
+|cluster.shd-wait-qlength |Specifies the number of entries that must be
+kept in the queue for self-heal daemon threads to take up as soon as any
+of the threads are free to heal. This value should be changed based on
+how much memory self-heal daemon process can use for keeping the next
+set of entries that need to be healed. |1 - 655536 |1024
+
+|config.transport |Specifies the type of transport(s) volume would
+support communicating over. |tcp OR rdma OR tcp,rdma |tcp
+
+|diagnostics.brick-log-level |Changes the log-level of the bricks. |INFO
+| DEBUG | WARNING | ERROR | CRITICAL | NONE | TRACE |info
+
+|diagnostics.client-log-level |Changes the log-level of the clients.
+|INFO | DEBUG | WARNING | ERROR | CRITICAL | NONE | TRACE |info
+
+|diagnostics.brick-sys-log-level |Depending on the value defined for
+this option, log messages at and above the defined level are generated
+in the syslog and the brick log files. |INFO | WARNING | ERROR |
+CRITICAL |CRITICAL
+
+|diagnostics.client-sys-log-level |Depending on the value defined for
+this option, log messages at and above the defined level are generated
+in the syslog and the client log files. |INFO | WARNING | ERROR |
+CRITICAL |CRITICAL
+
+|diagnostics.client-log-format |Allows you to configure the log format
+to log either with a message id or without one on the client. |no-msg-id
+| with-msg-id |with-msg-id
+
+|diagnostics.brick-log-format |Allows you to configure the log format to
+log either with a message id or without one on the brick. |no-msg-id |
+with-msg-id |with-msg-id
+
+|diagnostics.brick-log-flush-timeout |The length of time for which the
+log messages are buffered, before being flushed to the logging
+infrastructure (gluster or syslog files) on the bricks. |30 - 300
+seconds (30 and 300 included) |120 seconds
+
+|diagnostics.brick-log-buf-size |The maximum number of unique log
+messages that can be suppressed until the timeout or buffer overflow,
+whichever occurs first on the bricks. |0 and 20 (0 and 20 included) |5
+
+|diagnostics.client-log-flush-timeout |The length of time for which the
+log messages are buffered, before being flushed to the logging
+infrastructure (gluster or syslog files) on the clients. |30 - 300
+seconds (30 and 300 included) |120 seconds
+
+|diagnostics.client-log-buf-size |The maximum number of unique log
+messages that can be suppressed until the timeout or buffer overflow,
+whichever occurs first on the clients. |0 and 20 (0 and 20 included) |5
+
+|disperse.eager-lock |Before a file operation starts, a lock is placed
+on the file. The lock remains in place until the file operation is
+complete. After the file operation completes, if eager-lock is on, the
+lock remains in place either until lock contention is detected, or for 1
+second in order to check if there is another request for that file from
+the same client. If eager-lock is off, locks release immediately after
+file operations complete, improving performance for some operations, but
+reducing access efficiency. |on | off |on
+
+|features.ctr-enabled |Enables Change Time Recorder (CTR) translator for
+a tiered volume. This option is used in conjunction with
+`features.record-counters` option to enable recording write and read
+heat counters. |on | off |on
+
+|features.ctr_link_consistency |Enables a crash consistent way of
+recording hardlink updates by Change Time Recorder translator. When
+recording in a crash consistent way the data operations will experience
+more latency. |on | off |off
+
+|features.quota-deem-statfs |When this option is set to on, it takes the
+quota limits into consideration while estimating the filesystem size.
+The limit will be treated as the total size instead of the actual size
+of filesystem. |on | off |on
+
+|features.record-counters |If set to `enabled`,
+`cluster.write-freq-threshold` and `cluster.read-freq-threshold` options
+defines the number of writes and reads to a given file that are needed
+before triggering migration. |on | off |on
+
+|features.read-only |Specifies whether to mount the entire volume as
+read-only for all the clients accessing it. |on | off |off
+
+|features.shard |Enables or disables sharding on the volume. Affects
+files created after volume configuration. |enable | disable |disable
+
+|features.shard-block-size |Specifies the maximum size of file pieces
+when sharding is enabled. Affects files created after volume
+configuration. |512MB |512MB
+
+|geo-replication.indexing |Enables the marker translator to track the
+changes in the volume. |on | off |off
+
+|performance.quick-read |To enable/disable quick-read translator in the
+volume. |on | off |on
+
+|network.ping-timeout |The time the client waits for a response from the
+server. If a timeout occurs, all resources held by the server on behalf
+of the client are cleaned up. When the connection is reestablished, all
+resources need to be reacquired before the client can resume operations
+on the server. Additionally, locks are acquired and the lock tables are
+updated. A reconnect is a very expensive operation and must be avoided.
+|42 seconds |42 seconds
+
+|nfs.acl |Disabling nfs.acl will remove support for the NFSACL sideband
+protocol. This is enabled by default. |enable | disable |enable
+
+|nfs.enable-ino32 |For nfs clients or applciatons that do not support
+64-bit inode numbers, use this option to make NFS return 32-bit inode
+numbers instead. Disabled by default, so NFS returns 64-bit inode
+numbers. |enable | disable |disable
+
+a|
+_________________________________________________________________________________________________________________________________________
+*Note*
+
+The value set for `nfs.enable-ino32` option is global and applies to all
+the volumes in the {{ book.productTitle }} trusted storage pool.
+_________________________________________________________________________________________________________________________________________
+
+|nfs.export-dir |By default, all NFS volumes are exported as individual
+exports. This option allows you to export specified subdirectories on
+the volume. |The path must be an absolute path. Along with the path
+allowed, list of IP address or hostname can be associated with each
+subdirectory. |None
+
+|nfs.export-dirs |By default, all NFS sub-volumes are exported as
+individual exports. This option allows any directory on a volume to be
+exported separately. |on | off |on
+
+a|
+___________________________________________________________________________________________________________________________________________________________________
+*Note*
+
+The value set for `nfs.export-dirs` and `nfs.export-volumes` options are
+global and applies to all the volumes in the {{ book.productTitle }}
+trusted storage pool.
+___________________________________________________________________________________________________________________________________________________________________
+
+|nfs.export-volumes |Enables or disables exporting entire volumes. If
+disabled and used in conjunction with `nfs.export-dir`, you can set
+subdirectories as the only exports. |on | off |on
+
+|nfs.mount-rmtab |Path to the cache file that contains a list of
+NFS-clients and the volumes they have mounted. Change the location of
+this file to a mounted (with glusterfs-fuse, on all storage servers)
+volume to gain a trusted pool wide view of all NFS-clients that use the
+volumes. The contents of this file provide the information that can get
+obtained with the `showmount` command. |Path to a directory
+|/var/lib/glusterd/nfs/rmtab
+
+|nfs.mount-udp |Enable UDP transport for the MOUNT sideband protocol. By
+default, UDP is not enabled, and MOUNT can only be used over TCP. Some
+NFS-clients (certain Solaris, HP-UX and others) do not support MOUNT
+over TCP and enabling `nfs.mount-udp` makes it possible to use NFS
+exports provided by {{ book.productTitle }}. |disable | enable |disable
+
+|nfs.nlm |By default, the Network Lock Manager (NLMv4) is enabled. Use
+this option to disable NLM. {{ book.company }} does not recommend disabling this
+option. |on |on|off
+
+|nfs.rpc-auth-allow IP_ADRESSES |A comma separated list of IP addresses
+allowed to connect to the server. By default, all clients are allowed.
+|Comma separated list of IP addresses |accept all
+
+|nfs.rpc-auth-reject IP_ADRESSES |A comma separated list of addresses
+not allowed to connect to the server. By default, all connections are
+allowed. |Comma separated list of IP addresses |reject none
+
+|nfs.ports-insecure |Allows client connections from unprivileged ports.
+By default only privileged ports are allowed. This is a global setting
+for allowing insecure ports for all exports using a single option. |on |
+off |off
+
+|nfs.addr-namelookup |Specifies whether to lookup names for incoming
+client connections. In some configurations, the name server can take too
+long to reply to DNS queries, resulting in timeouts of mount requests.
+This option can be used to disable name lookups during address
+authentication. Note that disabling name lookups will prevent you from
+using hostnames in `nfs.rpc-auth-*` options. |on | off |on
+
+|nfs.port |Associates glusterFS NFS with a non-default port. |1025-65535
+|38465- 38467
+
+|nfs.disable |Specifies whether to disable NFS exports of individual
+volumes. |on | off |off
+
+|nfs.server-aux-gids |When enabled, the NFS-server will resolve the
+groups of the user accessing the volume. NFSv3 is restricted by the RPC
+protocol (AUTH_UNIX/AUTH_SYS header) to 16 groups. By resolving the
+groups on the NFS-server, this limits can get by-passed. |on|off |off
+
+|nfs.transport-type |Specifies the transport used by GlusterFS NFS
+server to communicate with bricks. |tcp OR rdma |tcp
+
+|open-behind |It improves the application's ability to read data from a
+file by sending success notifications to the application whenever it
+receives a open call. |on | off |on
+
+|performance.io-thread-count |The number of threads in the IO threads
+translator. |0 - 65 |16
+
+|performance.cache-max-file-size |Sets the maximum file size cached by
+the io-cache translator. Can be specified using the normal size
+descriptors of KB, MB, GB, TB, or PB (for example, 6GB). |Size in bytes,
+or specified using size descriptors. |2 ^ 64-1 bytes
+
+|performance.cache-min-file-size |Sets the minimum file size cached by
+the io-cache translator. Can be specified using the normal size
+descriptors of KB, MB, GB, TB, or PB (for example, 6GB). |Size in bytes,
+or specified using size descriptors. |0
+
+|performance.cache-refresh-timeout |The number of seconds cached data
+for a file will be retained. After this timeout, data re-validation will
+be performed. |0 - 61 seconds |1 second
+
+|performance.cache-size |Size of the read cache. |Size in bytes, or
+specified using size descriptors. |32 MB
+
+|performance.md-cache-timeout |The time period in seconds which controls
+when metadata cache has to be refreshed. If the age of cache is greater
+than this time-period, it is refreshed. Every time cache is refreshed,
+its age is reset to 0. |0-60 seconds |1 second
+
+|performance.use-anonymous-fd |This option requires `open-behind` to be
+on. For read operations, use anonymous FD when the original FD is
+open-behind and not yet opened in the backend. |Yes | No |Yes
+
+|performance.lazy-open |This option requires `open-behind` to be on.
+Perform an open in the backend only when a necessary FOP arrives (for
+example, write on the FD, unlink of the file). When this option is
+disabled, perform backend open immediately after an unwinding open.
+|Yes/No |Yes
+
+|rebal-throttle |Rebalance process is made multithreaded to handle
+multiple files migration for enhancing the performance. During multiple
+file migration, there can be a severe impact on storage system
+performance. The throttling mechanism is provided to manage it. |lazy,
+normal, aggressive |normal
+
+|server.allow-insecure |Allows client connections from unprivileged
+ports. By default, only privileged ports are allowed. This is a global
+setting for allowing insecure ports to be enabled for all exports using
+a single option. |on | off |off
+
+a|
+____________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+*Important*
+
+Turning `server.allow-insecure` to `on` allows ports to accept/reject
+messages from insecure ports. Enable this option only if your deployment
+requires it, for example if there are too many bricks in each volume, or
+if there are too many services which have already utilized all the
+privileged ports in the system. You can control access of only glusterFS
+FUSE-based clients. Use `nfs.rpc-auth-*` options for NFS access control.
+____________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+
+|server.root-squash |Prevents root users from having root privileges,
+and instead assigns them the privileges of **nfsnobody**. This
+_squashes_ the power of the root users, preventing unauthorized
+modification of files on the {{ book.productTitle }} Servers. |on | off
+|off
+
+|server.anonuid |Value of the UID used for the anonymous user when
+root-squash is enabled. When root-squash is enabled, all the requests
+received from the root UID (that is 0) are changed to have the UID of
+the anonymous user. |0 - 4294967295 |65534 (this UID is also known as
+`nfsnobody`)
+
+|server.anongid |Value of the GID used for the anonymous user when
+root-squash is enabled. When root-squash is enabled, all the requests
+received from the root GID (that is 0) are changed to have the GID of
+the anonymous user. |0 - 4294967295 |65534 (this UID is also known as
+`nfsnobody`)
+
+|server.gid-timeout |The time period in seconds which controls when
+cached groups has to expire. This is the cache that contains the groups
+(GIDs) where a specified user (UID) belongs to. This option is used only
+when `server.manage-gids` is enabled. |0-4294967295 seconds |2 seconds
+
+|server.manage-gids |Resolve groups on the server-side. By enabling this
+option, the groups (GIDs) a user (UID) belongs to gets resolved on the
+server, instead of using the groups that were send in the RPC Call by
+the client. This option makes it possible to apply permission checks for
+users that belong to bigger group lists than the protocol supports
+(approximately 93). |on|off |off
+
+|server.statedump-path |Specifies the directory in which the `statedump`
+files must be stored. |/var/run/gluster (for a default installation)
+|Path to a directory
+
+|storage.health-check-interval |Sets the time interval in seconds for a
+filesystem health check. You can set it to 0 to disable. The POSIX
+translator on the bricks performs a periodic health check. If this check
+fails, the filesystem exported by the brick is not usable anymore and
+the brick process (glusterfsd) logs a warning and exits. |0-4294967295
+seconds |30 seconds
+
+|storage.owner-uid |Sets the UID for the bricks of the volume. This
+option may be required when some of the applications need the brick to
+have a specific UID to function correctly. Example: For QEMU integration
+the UID/GID must be qemu:qemu, that is, 107:107 (107 is the UID and GID
+of qemu). |Any integer greater than or equal to -1. |The UID of the
+bricks are not changed. This is denoted by `-1`.
+
+|storage.owner-gid |Sets the GID for the bricks of the volume. This
+option may be required when some of the applications need the brick to
+have a specific GID to function correctly. Example: For QEMU integration
+the UID/GID must be qemu:qemu, that is, 107:107 (107 is the UID and GID
+of qemu). |Any integer greater than or equal to -1. |The GID of the
+bricks are not changed. This is denoted by `-1`.
+|=======================================================================
+
+[[Configuring_Transport_Types_for_a_Volume]]
+= Configuring Transport Types for a Volume
+
+A volume can support one or more transport types for communication
+between clients and brick processes. There are three types of supported
+transport, which are, tcp, rdma, and tcp,rdma.
+
+To change the supported transport types of a volume, follow the
+procedure:
+
+1.  Unmount the volume on all the clients using the following command:
++
+--------------------
+# umount mount-point
+--------------------
+2.  Stop the volumes using the following command:
++
+-----------------------------
+# gluster volume stop volname
+-----------------------------
+3.  Change the transport type. For example, to enable both tcp and rdma
+execute the followimg command:
++
+---------------------------------------------------------------------
+# gluster volume set volname config.transport tcp,rdma OR tcp OR rdma
+---------------------------------------------------------------------
+4.  Mount the volume on all the clients. For example, to mount using
+rdma transport, use the following command:
++
+--------------------------------------------------------------------------
+# mount -t glusterfs -o transport=rdma server1:/test-volume /mnt/glusterfs
+--------------------------------------------------------------------------
+
+[[Expanding_Volumes]]
+= Expanding Volumes
+
+Volumes can be expanded while the trusted storage pool is online and
+available. For example, you can add a brick to a distributed volume,
+which increases distribution and adds capacity to the {{ book.productTitle }}
+volume. Similarly, you can add a group of bricks to a replicated
+or distributed replicated volume, which increases the capacity of the
+{{ book.productTitle }} volume.
+
+__________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+*Note*
+
+When expanding replicated or distributed replicated volumes, the number
+of bricks being added must be a multiple of the replica count. For
+example, to expand a distributed replicated volume with a replica count
+of 2, you need to add bricks in multiples of 2 (such as 4, 6, 8, etc.).
+__________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+
+______________________________________________________________________________________________________
+*Important*
+
+Converting an existing distribute volume to replicate or
+distribute-replicate volume is not supported.
+______________________________________________________________________________________________________
+
+1.  From any server in the trusted storage pool, use the following
+command to probe the server on which you want to add a new brick :
++
+-----------------------------
+# gluster peer probe HOSTNAME
+-----------------------------
++
+For example:
++
+----------------------------
+# gluster peer probe server5
+Probe successful
+
+# gluster peer probe server6
+Probe successful
+----------------------------
+2.  Add the bricks using the following command:
++
+--------------------------------------------
+# gluster volume add-brick VOLNAME NEW_BRICK
+--------------------------------------------
++
+For example:
++
+--------------------------------------------------------------------
+# gluster volume add-brick test-volume server5:/rhgs5 server6:/rhgs6
+Add Brick successful
+--------------------------------------------------------------------
+3.  Check the volume information using the following command:
++
+---------------------
+# gluster volume info
+---------------------
++
+The command output displays information similar to the following:
++
+----------------------------
+Volume Name: test-volume
+Type: Distribute-Replicate
+Status: Started
+Number of Bricks: 6
+Bricks:
+Brick1: server1:/rhgs/brick1
+Brick2: server2:/rhgs/brick2
+Brick3: server3:/rhgs/brick3
+Brick4: server4:/rhgs/brick4
+Brick5: server5:/rhgs/brick5
+Brick6: server6:/rhgs/brick6
+----------------------------
+4.  Rebalance the volume to ensure that files will be distributed to the
+new brick. Use the rebalance command as described in <<sect-Rebalancing_Volumes>>.
++
+The `add-brick` command should be followed by a `rebalance` operation to
+ensure better utilization of the added bricks.
+
+[[chap-Managing_Red_Hat_Storage_Volumes-Expanding_Tiered_Volume]]
+== Expanding a Tiered Volume
+
+You can add a group of bricks to a cold tier volume and to the hot tier
+volume to increase the capacity of the {{ book.productTitle }} volume.
+
+=== Expanding a Cold Tier Volume
+
+Expanding a cold tier volume is same as a non-tiered volume. If you are
+reusing the brick, ensure to perform the steps listed in
+“<<../architecture/chap-Gluster_Volumes.adoc#Formatting_and_Mounting_Bricks,
+Formatting and Mounting Bricks>>” section.
+
+1.  Detach the tier by performing the steps listed in
+<<../features/chap-Managing_Tiering.adoc#chap-Managing_Data_Tiering-Detach_Tier,
+Detaching a Tier from a Volume>>
+2.  From any server in the trusted storage pool, use the following
+command to probe the server on which you want to add a new brick :
++
+-----------------------------
+# gluster peer probe HOSTNAME
+-----------------------------
++
+For example:
++
+----------------------------
+# gluster peer probe server5
+Probe successful
+
+# gluster peer probe server6
+Probe successful
+----------------------------
+3.  Add the bricks using the following command:
++
+--------------------------------------------
+# gluster volume add-brick VOLNAME NEW_BRICK
+--------------------------------------------
++
+For example:
++
+--------------------------------------------------------------------
+# gluster volume add-brick test-volume server5:/rhgs5 server6:/rhgs6
+--------------------------------------------------------------------
+4.  Rebalance the volume to ensure that files will be distributed to the
+new brick. Use the rebalance command as described in
+<<sect-Rebalancing_Volumes>>.
++
+The `add-brick` command should be followed by a `rebalance` operation to
+ensure better utilization of the added bricks.
+5.  Reattach the tier to the volume with both old and new (expanded)
+bricks:
++
+`# gluster volume tier VOLNAME attach [replica COUNT] NEW-BRICK...`
++
+________________________________________________________________________________________________________________________________________________________________________________________________________
+*Important*
+
+When you reattach a tier, an internal process called fix-layout
+commences internally to prepare the hot tier for use. This process takes
+time and there will a delay in starting the tiering activities.
+________________________________________________________________________________________________________________________________________________________________________________________________________
++
+If you are reusing the brick, be sure to clearly wipe the existing data
+before attaching it to the tiered volume.
+
+=== Expanding a Hot Tier Volume
+
+You can expand a hot tier volume by attaching and adding bricks for the
+hot tier.
+
+1.  Detach the tier by performing the steps listed in
+<<../features/chap-Managing_Tiering.adoc#chap-Managing_Data_Tiering-Detach_Tier,
+Detaching a Tier from a Volume>>
+2.  Reattach the tier to the volume with both old and new (expanded)
+bricks:
++
+`# gluster volume tier VOLNAME attach [replica COUNT] NEW-BRICK...`
++
+For example,
++
+--------------------------------------------------------------------------------------------
+# gluster volume tier test-volume attach replica 2 server1:/rhgs5/tier5 server2:/rhgs6/tier6
+server1:/rhgs7/tier7 server2:/rhgs8/tier8
+--------------------------------------------------------------------------------------------
++
+________________________________________________________________________________________________________________________________________________________________________________________________________
+*Important*
+
+When you reattach a tier, an internal process called fix-layout
+commences internally to prepare the hot tier for use. This process takes
+time and there will a delay in starting the tiering activities.
+________________________________________________________________________________________________________________________________________________________________________________________________________
++
+If you are reusing the brick, be sure to clearly wipe the existing data
+before attaching it to the tiered volume.
+
+[[sect-Shrinking_Volumes]]
+= Shrinking Volumes
+
+You can shrink volumes while the trusted storage pool is online and
+available. For example, you may need to remove a brick that has become
+inaccessible in a distributed volume because of a hardware or network
+failure.
+
+__________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+*Note*
+
+When shrinking distributed replicated volumes, the number of bricks
+being removed must be a multiple of the replica count. For example, to
+shrink a distributed replicated volume with a replica count of 2, you
+need to remove bricks in multiples of 2 (such as 4, 6, 8, etc.). In
+addition, the bricks you are removing must be from the same sub-volume
+(the same replica set). In a non-replicated volume, all bricks must be
+available in order to migrate data and perform the remove brick
+operation. In a replicated volume, at least one of the bricks in the
+replica must be available.
+__________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+
+1.  Remove a brick using the following command:
++
+-------------------------------------------------
+# gluster volume remove-brick VOLNAME BRICK start
+-------------------------------------------------
++
+For example:
++
+--------------------------------------------------------------------
+# gluster volume remove-brick test-volume server2:/rhgs/brick2 start
+Remove Brick start successful
+--------------------------------------------------------------------
++
+___________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+*Note*
+
+If the `remove-brick` command is run with `force` or without any option,
+the data on the brick that you are removing will no longer be accessible
+at the glusterFS mount point. When using the `start` option, the data is
+migrated to other bricks, and on a successful commit the removed brick's
+information is deleted from the volume configuration. Data can still be
+accessed directly on the brick.
+___________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+2.  You can view the status of the remove brick operation using the
+following command:
++
+--------------------------------------------------
+# gluster volume remove-brick VOLNAME BRICK status
+--------------------------------------------------
++
+For example:
++
+---------------------------------------------------------------------------------------
+# gluster volume remove-brick test-volume server2:/rhgs/brick2 status
+      Node    Rebalanced-files          size       scanned      failures         status
+ ---------         -----------   -----------   -----------   -----------   ------------
+ localhost                  16      16777216            52             0    in progress
+192.168.1.1                 13      16723211            47             0    in progress
+---------------------------------------------------------------------------------------
+3.  When the data migration shown in the previous `status` command is
+complete, run the following command to commit the brick removal:
++
+--------------------------------------------------
+# gluster volume remove-brick VOLNAME BRICK commit
+--------------------------------------------------
++
+For example,
++
+---------------------------------------------------------------------
+# gluster volume remove-brick test-volume server2:/rhgs/brick2 commit
+---------------------------------------------------------------------
+4.  After the brick removal, you can check the volume information using
+the following command:
++
+----------------------
+# gluster volume info 
+----------------------
++
+The command displays information similar to the following:
++
+----------------------------
+# gluster volume info
+Volume Name: test-volume
+Type: Distribute
+Status: Started
+Number of Bricks: 3
+Bricks:
+Brick1: server1:/rhgs/brick1
+Brick3: server3:/rhgs/brick3
+Brick4: server4:/rhgs/brick4
+----------------------------
+
+== Shrinking a Geo-replicated Volume
+
+1.  Remove a brick using the following command:
++
+-------------------------------------------------
+# gluster volume remove-brick VOLNAME BRICK start
+-------------------------------------------------
++
+For example:
++
+-----------------------------------------------------------------------
+# gluster volume remove-brick MASTER_VOL MASTER_HOST:/rhgs/brick2 start
+Remove Brick start successful
+-----------------------------------------------------------------------
++
+___________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+*Note*
+
+If the `remove-brick` command is run with `force` or without any option,
+the data on the brick that you are removing will no longer be accessible
+at the glusterFS mount point. When using the `start` option, the data is
+migrated to other bricks, and on a successful commit the removed brick's
+information is deleted from the volume configuration. Data can still be
+accessed directly on the brick.
+___________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+2.  Use geo-replication `config checkpoint` to ensure that all the data
+in that brick is synced to the slave.
+1.  Set a checkpoint to help verify the status of the data
+synchronization.
++
+---------------------------------------------------------------------------------------
+# gluster volume geo-replication MASTER_VOL SLAVE_HOST::SLAVE_VOL config checkpoint now
+---------------------------------------------------------------------------------------
+2.  Verify the checkpoint completion for the geo-replication session
+using the following command:
++
+-------------------------------------------------------------------------------
+# gluster volume geo-replication MASTER_VOL SLAVE_HOST::SLAVE_VOL status detail
+-------------------------------------------------------------------------------
+3.  You can view the status of the remove brick operation using the
+following command:
++
+--------------------------------------------------
+# gluster volume remove-brick VOLNAME BRICK status
+--------------------------------------------------
++
+For example:
++
+--------------------------------------------------------------------------
+# gluster volume remove-brick  MASTER_VOL MASTER_HOST:/rhgs/brick2 status 
+--------------------------------------------------------------------------
+4.  Stop the geo-replication session between the master and the slave:
++
+----------------------------------------------------------------------
+# gluster volume geo-replication MASTER_VOL SLAVE_HOST::SLAVE_VOL stop
+----------------------------------------------------------------------
+5.  When the data migration shown in the previous `status` command is
+complete, run the following command to commit the brick removal:
++
+--------------------------------------------------
+# gluster volume remove-brick VOLNAME BRICK commit
+--------------------------------------------------
++
+For example,
++
+-------------------------------------------------------------------------
+# gluster volume remove-brick  MASTER_VOL MASTER_HOST:/rhgs/brick2 commit
+-------------------------------------------------------------------------
+6.  After the brick removal, you can check the volume information using
+the following command:
++
+----------------------
+# gluster volume info 
+----------------------
+7.  Start the geo-replication session between the hosts:
++
+-----------------------------------------------------------------------
+# gluster volume geo-replication MASTER_VOL SLAVE_HOST::SLAVE_VOL start
+-----------------------------------------------------------------------
+
+[[chap-Managing_Red_Hat_Storage_Volumes-Shrinking_Tiered_Volume]]
+== Shrinking a Tiered Volume
+
+You can shrink a tiered volume while the trusted storage pool is online
+and available. For example, you may need to remove a brick that has
+become inaccessible because of a hardware or network failure.
+
+=== Shrinking a Cold Tier Volume
+
+1.  Detach the tier by performing the steps listed in
+<<../features/chap-Managing_Tiering.adoc#chap-Managing_Data_Tiering-Detach_Tier,
+Detaching a Tier from a Volume>>
+2.  Remove a brick using the following command:
++
+-------------------------------------------------
+# gluster volume remove-brick VOLNAME BRICK start
+-------------------------------------------------
++
+For example:
++
+--------------------------------------------------------------
+# gluster volume remove-brick test-volume server2:/rhgs2 start
+Remove Brick start successful
+--------------------------------------------------------------
++
+___________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+*Note*
+
+If the `remove-brick` command is run with `force` or without any option,
+the data on the brick that you are removing will no longer be accessible
+at the glusterFS mount point. When using the `start` option, the data is
+migrated to other bricks, and on a successful commit the removed brick's
+information is deleted from the volume configuration. Data can still be
+accessed directly on the brick.
+___________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+3.  You can view the status of the remove brick operation using the
+following command:
++
+--------------------------------------------------
+# gluster volume remove-brick VOLNAME BRICK status
+--------------------------------------------------
++
+For example:
++
+---------------------------------------------------------------------------------------
+# gluster volume remove-brick test-volume server2:/rhgs2 status
+      Node    Rebalanced-files          size       scanned      failures         status
+ ---------         -----------   -----------   -----------   -----------   ------------
+ localhost                  16      16777216            52             0    in progress
+192.168.1.1                 13      16723211            47             0    in progress
+---------------------------------------------------------------------------------------
+4.  When the data migration shown in the previous `status` command is
+complete, run the following command to commit the brick removal:
++
+--------------------------------------------------
+# gluster volume remove-brick VOLNAME BRICK commit
+--------------------------------------------------
++
+For example,
++
+---------------------------------------------------------------
+# gluster volume remove-brick test-volume server2:/rhgs2 commit
+---------------------------------------------------------------
+5.  Rerun the attach-tier command only with the required set of bricks:
++
+`# gluster volume tier VOLNAME attach [replica COUNT] BRICK...`
++
+For example,
++
+--------------------------------------------------------------------------------------------------------------------------------------
+# gluster volume tier test-volume attach replica 2 server1:/rhgs1/tier1 server2:/rhgs2/tier2 server1:/rhgs3/tier3 server2:/rhgs5/tier5
+--------------------------------------------------------------------------------------------------------------------------------------
++
+______________________________________________________________________________________________________________________________________________________________________________________________________
+*Important*
+
+When you attach a tier, an internal process called fix-layout commences
+internally to prepare the hot tier for use. This process takes time and
+there will a delay in starting the tiering activities.
+______________________________________________________________________________________________________________________________________________________________________________________________________
+
+=== Shrinking a Hot Tier Volume
+
+You must first decide on which bricks should be part of the hot tiered
+volume and which bricks should be removed from the hot tier volume.
+
+1.  Detach the tier by performing the steps listed in
+<<../features/chap-Managing_Tiering.adoc#chap-Managing_Data_Tiering-Detach_Tier,
+Detaching a Tier from a Volume>>
+2.  Rerun the attach-tier command only with the required set of bricks:
++
+`# gluster volume tier VOLNAME attach [replica COUNT] brick...`
++
+________________________________________________________________________________________________________________________________________________________________________________________________________
+*Important*
+
+When you reattach a tier, an internal process called fix-layout
+commences internally to prepare the hot tier for use. This process takes
+time and there will a delay in starting the tiering activities.
+________________________________________________________________________________________________________________________________________________________________________________________________________
+
+[[Stopping_a_remove-brick_Operation]]
+== Stopping a `remove-brick` Operation
+
+{% if book.productTitle != "GlusterFS" %}
+_________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+*Important*
+
+Stopping a `remove-brick` operation is a technology preview feature.
+Technology Preview features are not fully supported under {{ book.company }}
+subscription level agreements (SLAs), may not be functionally complete,
+and are not intended for production use. However, these features provide
+early access to upcoming product innovations, enabling customers to test
+functionality and provide feedback during the development process. As
+{{ book.company }} considers making future iterations of Technology Preview
+features generally available, we will provide commercially reasonable
+efforts to resolve any reported issues that customers experience when
+using these features.
+_________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+
+{% endif %}
+
+A `remove-brick` operation that is in progress can be stopped by using
+the `stop` command.
+
+___________________________________________________________________________________________________________________________________________
+*Note*
+
+Files that were already migrated during `remove-brick` operation will
+not be migrated back to the same brick when the operation is stopped.
+___________________________________________________________________________________________________________________________________________
+
+To stop remove brick operation, use the following command:
+
+------------------------------------------------
+# gluster volume remove-brick VOLNAME BRICK stop
+------------------------------------------------
+
+For example:
+
+------------------------------------------------------------------------------------------------------------
+gluster volume remove-brick di rhgs1:/brick1/di21 rhgs1:/brick1/di21 stop
+
+Node   Rebalanced-files   size     scanned  failures   skipped   status  run-time in secs
+----      -------         ----       ----     ------    -----     -----    ------
+localhost     23          376Bytes    34        0        0      stopped      2.00
+rhs1          0           0Bytes      88        0        0      stopped      2.00
+rhs2          0           0Bytes       0        0        0      not started  0.00
+'remove-brick' process may be in the middle of a file migration.
+The process will be fully stopped once the migration of the file is complete.
+Please check remove-brick process for completion before doing any further brick related tasks on the volume.
+------------------------------------------------------------------------------------------------------------
+
+[[sect-Migrating_Volumes]]
+= Migrating Volumes
+
+Data can be redistributed across bricks while the trusted storage pool
+is online and available.Before replacing bricks on the new servers,
+ensure that the new servers are successfully added to the trusted
+storage pool.
+
+_____________________________________________________________________________________________________________________________________________________________
+*Note*
+
+Before performing a `replace-brick` operation, review the known issues
+related to `replace-brick` operation in the {{ book.productTitle }} 3.1
+Release Notes.
+_____________________________________________________________________________________________________________________________________________________________
+
+[[Replacing_a_Brick]]
+== Replacing a Subvolume on a Distribute or Distribute-replicate Volume
+
+This procedure applies only when at least one brick from the subvolume
+to be replaced is online. In case of a Distribute volume, the brick that
+must be replaced must be online. In case of a Distribute-replicate, at
+least one brick from the subvolume from the replica set that must be
+replaced must be online.
+
+To replace the entire subvolume with new bricks on a
+_Distribute-replicate_ volume, follow these steps:
+
+1.  Add the new bricks to the volume.
++
+---------------------------------------------------------------
+# gluster volume add-brick VOLNAME [replica <COUNT>] NEW-BRICK 
+---------------------------------------------------------------
++
+-----------------------------------------------------------
+# gluster volume add-brick test-volume server5:/rhgs/brick5
+Add Brick successful
+-----------------------------------------------------------
+2.  Verify the volume information using the command:
++
+--------------------------------
+# gluster volume info
+ Volume Name: test-volume
+    Type: Distribute
+    Status: Started
+    Number of Bricks: 5
+    Bricks:
+    Brick1: server1:/rhgs/brick1
+    Brick2: server2:/rhgs/brick2
+    Brick3: server3:/rhgs/brick3
+    Brick4: server4:/rhgs/brick4
+    Brick5: server5:/rhgs/brick5
+--------------------------------
++
+______________________________________________________________________________________________________________________________________________________________________________________________
+*Note*
+
+In case of a Distribute-replicate volume, you must specify the replica
+count in the `add-brick` command and provide the same number of bricks
+as the replica count to the `add-brick` command.
+______________________________________________________________________________________________________________________________________________________________________________________________
+3.  Remove the bricks to be replaced from the subvolume.
+1.  Start the `remove-brick` operation using the command:
++
+---------------------------------------------------------------------
+# gluster volume remove-brick VOLNAME [replica <COUNT>] <BRICK> start
+---------------------------------------------------------------------
++
+--------------------------------------------------------------------
+# gluster volume remove-brick test-volume server2:/rhgs/brick2 start
+Remove Brick start successful
+--------------------------------------------------------------------
+2.  View the status of the `remove-brick` operation using the command:
++
+--------------------------------------------------------------------
+# gluster volume remove-brick VOLNAME [replica <COUNT>] BRICK status
+--------------------------------------------------------------------
++
+---------------------------------------------------------------------
+# gluster volume remove-brick test-volume server2:/rhgs/brick2 status
+Node     Rebalanced-files size        scanned failures status
+------------------------------------------------------------------
+server2  16               16777216    52      0        in progress
+---------------------------------------------------------------------
++
+Keep monitoring the `remove-brick` operation status by executing the
+above command. When the value of the status field is set to `complete`
+in the output of `remove-brick` status command, proceed further.
+3.  Commit the `remove-brick` operation using the command:
++
+----------------------------------------------------------------------
+# gluster volume remove-brick VOLNAME [replica <COUNT>] <BRICK> commit
+----------------------------------------------------------------------
++
+---------------------------------------------------------------------
+# gluster volume remove-brick test-volume server2:/rhgs/brick2 commit
+---------------------------------------------------------------------
+4.  Verify the volume information using the command:
++
+----------------------------
+# gluster volume info
+Volume Name: test-volume
+Type: Distribute
+Status: Started
+Number of Bricks: 4
+Bricks:
+Brick1: server1:/rhgs/brick1
+Brick3: server3:/rhgs/brick3
+Brick4: server4:/rhgs/brick4
+Brick5: server5:/rhgs/brick5
+----------------------------
+5.  Verify the content on the brick after committing the `remove-brick`
+operation on the volume. If there are any files leftover, copy it
+through FUSE or NFS mount.
+1.  Verify if there are any pending files on the bricks of the
+subvolume.
++
+Along with files, all the application-specific extended attributes must
+be copied. glusterFS also uses extended attributes to store its internal
+data. The extended attributes used by glusterFS are of the form
+`trusted.glusterfs.*`, `trusted.afr.*`, and ` trusted.gfid`. Any
+extended attributes other than ones listed above must also be copied.
++
+To copy the application-specific extended attributes and to achieve a an
+effect similar to the one that is described above, use the following
+shell script:
++
+Syntax:
++
+-----------------------------------------
+# copy.sh <glusterfs-mount-point> <brick>
+-----------------------------------------
++
+If the mount point is `/mnt/glusterfs` and brick path is `/rhgs/brick1`,
+then the script must be run as:
++
+-------------------------------------
+# copy.sh /mnt/glusterfs /rhgs/brick1
+-------------------------------------
++
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#!/bin/bash
+
+MOUNT=$1
+BRICK=$2
+
+for file in `find $BRICK ! -type d`; do
+    rpath=`echo $file | sed -e "s#$BRICK\(.*\)#\1#g"`
+    rdir=`dirname $rpath`
+
+    cp -fv $file $MOUNT/$rdir;
+
+    for xattr in `getfattr -e hex -m. -d $file 2>/dev/null | sed -e '/^#/d' | grep -v -E "trusted.glusterfs.*" | grep -v -E "trusted.afr.*" | grep -v "trusted.gfid"`;
+    do
+        key=`echo $xattr | cut -d"=" -f 1`
+        value=`echo $xattr | cut -d"=" -f 2`
+
+        setfattr $MOUNT/$rpath -n $key -v $value
+    done
+done
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+2.  To identify a list of files that are in a split-brain state, execute
+the command:
++
+--------------------------------------------------
+# gluster volume heal test-volume info split-brain
+--------------------------------------------------
+3.  If there are any files listed in the output of the above command,
+compare the files across the bricks in a replica set, delete the bad
+files from the brick and retain the correct copy of the file. Manual
+intervention by the System Administrator would be required to choose the
+correct copy of file.
+
+[[Replacing_an_Old_Brick_with_a_New_Brick_on_a_Replicate_or_Distribute-replicate_Volume]]
+== Replacing an Old Brick with a New Brick on a Replicate or
+Distribute-replicate Volume
+
+A single brick can be replaced during a hardware failure situation, such
+as a disk failure or a server failure. The brick that must be replaced
+could either be online or offline. This procedure is applicable for
+volumes with replication. In case of a _Replicate_ or
+_Distribute-replicate_ volume types, after replacing the brick,
+self-heal is automatically triggered to heal the data on the new brick.
+
+Procedure to replace an old brick with a new brick on a _Replicate_ or
+_Distribute-replicate_ volume:
+
+1.  Ensure that the new brick (`sys5:/rhgs/brick1`) that replaces the
+old brick (`sys0:/rhgs/brick1`) is empty. Ensure that all the bricks are
+online. The brick that must be replaced can be in an offline state.
+2.  Execute the `replace-brick` command with the `force` option:
++
+----------------------------------------------------------------------------------
+# gluster volume replace-brick r2 sys0:/rhgs/brick1 sys5:/rhgs/brick1 commit force
+volume replace-brick: success: replace-brick commit successful 
+----------------------------------------------------------------------------------
+3.  Check if the new brick is online.
++
+---------------------------------------------------------
+# gluster volume status
+Status of volume: r2
+Gluster process                    Port    Online    Pid
+---------------------------------------------------------
+Brick sys5:/rhgs/brick1            49156    Y    5731
+
+Brick sys1:/rhgs/brick1            49153    Y    5354
+
+Brick sys2:/rhgs/brick1            49154    Y    5365
+
+Brick sys3:/rhgs/brick1            49155    Y    5376 
+---------------------------------------------------------
+4.  Data on the newly added brick would automatically be healed. It
+might take time depending upon the amount of data to be healed. It is
+recommended to check heal information after replacing a brick to make
+sure all the data has been healed before replacing/removing any other
+brick.
++
+-----------------------------------
+# gluster volume heal VOL_NAME info
+-----------------------------------
++
+For example:
++
+--------------------------------------
+# gluster volume heal test-volume info
+Brick server1:/rhgs/brick1
+Status: Connected
+Number of entries: 0
+
+Brick server1:/rhgs/brick2new
+Status: Connected
+Number of entries: 0
+
+Brick server2:/rhgs/brick3
+Status: Connected
+Number of entries: 0
+
+Brick server2:/rhgs/brick4
+Status: Connected
+Number of entries: 0
+
+Brick server3:/rhgs/brick5
+Status: Connected
+Number of entries: 0
+
+Brick server3:/rhgs/brick6
+Status: Connected
+Number of entries: 0
+   
+--------------------------------------
++
+The value of `Number of entries` field will be displayed as zero if the
+heal is complete.
+
+[[Replacing_an_Old_Brick_with_a_New_Brick_on_a_Distribute_Volume]]
+== Replacing an Old Brick with a New Brick on a Distribute Volume
+
+_______________________________________________________________________________________________________
+*Important*
+
+In case of a _Distribute_ volume type, replacing a brick using this
+procedure will result in data loss.
+_______________________________________________________________________________________________________
+
+1.  Replace a brick with a commit `force` option:
++
+-----------------------------------------------------------------------
+# gluster volume replace-brick VOLNAME <BRICK> <NEW-BRICK> commit force
+-----------------------------------------------------------------------
++
+----------------------------------------------------------------------------------
+# gluster volume replace-brick r2 sys0:/rhgs/brick1 sys5:/rhgs/brick1 commit force
+volume replace-brick: success: replace-brick commit successful
+----------------------------------------------------------------------------------
+2.  Verify if the new brick is online.
++
+---------------------------------------------------------
+# gluster volume status
+Status of volume: r2
+Gluster process                    Port    Online    Pid
+---------------------------------------------------------
+Brick sys5:/rhgs/brick1            49156    Y    5731
+
+Brick sys1:/rhgs/brick1            49153    Y    5354
+
+Brick sys2:/rhgs/brick1            49154    Y    5365
+
+Brick sys3:/rhgs/brick1            49155    Y    5376
+---------------------------------------------------------
+
+________________________________________________________________________________________
+*Note*
+
+All the `replace-brick` command options except the commit `force` option
+are deprecated.
+________________________________________________________________________________________
+
+[[Replacing_an_Old_Brick_with_a_New_Brick_on_a_Dispersed_or_Distributed-dispersed_Volume]]
+== Replacing an Old Brick with a New Brick on a Dispersed or
+Distributed-dispersed Volume
+
+A single brick can be replaced during a hardware failure situation, such
+as a disk failure or a server failure. The brick that must be replaced
+could either be online or offline but all other bricks must be online.
+
+Procedure to replace an old brick with a new brick on a Dispersed or
+Distributed-dispersed volume:
+
+1.  Ensure that the new brick that replaces the old brick is empty. The
+brick that must be replaced can be in an offline state but all other
+bricks must be online.
+2.  Execute the replace-brick command with the `force` option:
++
+-----------------------------------------------------------------------------------
+# gluster volume replace-brick VOL_NAME old_brick_path new_brick_path  commit force
+   
+-----------------------------------------------------------------------------------
++
+For example:
++
+-----------------------------------------------------------------------------------------------------
+# gluster volume replace-brick test-volume server1:/rhgs/brick2 server1:/rhgs/brick2new  commit force
+volume replace-brick: success: replace-brick commit successful
+-----------------------------------------------------------------------------------------------------
++
+The new brick you are adding could be from the same server or you can
+add a new server and then a new brick.
+3.  Check if the new brick is online.
++
+------------------------------------------------------------------------------
+# gluster volume status
+Status of volume: test-volume
+Gluster process                   TCP Port  RDMA Port  Online    Pid
+------------------------------------------------------------------------------
+Brick server1:/rhgs/brick1        49187     0          Y       19927
+Brick server1:/rhgs/brick2new     49188     0          Y       19946
+Brick server2:/rhgs/brick3        49189     0          Y       19965
+Brick server2:/rhgs/brick4        49190     0          Y       19984
+Brick server3:/rhgs/brick5        49191     0          Y       20003
+Brick server3:/rhgs/brick6        49192     0          Y       20022
+NFS Server on localhost             N/A       N/A        N       N/A
+Self-heal Daemon on localhost       N/A       N/A        Y       20043
+
+Task Status of Volume test-volume
+------------------------------------------------------------------------------
+There are no active volume tasks
+------------------------------------------------------------------------------
+4.  Data on the newly added brick would automatically be healed. It
+might take time depending upon the amount of data to be healed. It is
+recommended to check heal information after replacing a brick to make
+sure all the data has been healed before replacing/removing any other
+brick.
++
+-----------------------------------
+# gluster volume heal VOL_NAME info
+-----------------------------------
++
+For example:
++
+--------------------------------------
+# gluster volume heal test-volume info
+Brick server1:/rhgs/brick1
+Status: Connected
+Number of entries: 0
+
+Brick server1:/rhgs/brick2new
+Status: Connected
+Number of entries: 0
+
+Brick server2:/rhgs/brick3
+Status: Connected
+Number of entries: 0
+
+Brick server2:/rhgs/brick4
+Status: Connected
+Number of entries: 0
+
+Brick server3:/rhgs/brick5
+Status: Connected
+Number of entries: 0
+
+Brick server3:/rhgs/brick6
+Status: Connected
+Number of entries: 0
+   
+--------------------------------------
++
+The value of `Number of entries` field will be displayed as zero if the
+heal is complete.
+
+[[sect-Replacing_Hosts]]
+= Replacing Hosts
+
+[[Replacing_a_Host_Machine_with_a_Different_Hostname]]
+== Replacing a Host Machine with a Different Hostname
+
+You can replace a failed host machine with another host that has a
+different hostname.
+
+_______________________________________________________________________________________________________________________________________________________________________________________________________________________________
+*Important*
+
+Ensure that the new peer has the exact disk capacity as that of the one
+it is replacing. For example, if the peer in the cluster has two 100GB
+drives, then the new peer must have the same disk capacity and number of
+drives.
+_______________________________________________________________________________________________________________________________________________________________________________________________________________________________
+
+In the following example the original machine which has had an
+irrecoverable failure is `sys0.example.com` and the replacement machine
+is `sys5.example.com`. The brick with an unrecoverable failure is
+`sys0.example.com:/rhgs/brick1` and the replacement brick is
+`sys5.example.com:/rhgs/brick1`.
+
+1.  Stop the geo-replication session if configured by executing the
+following command:
++
+----------------------------------------------------------------------------
+# gluster volume geo-replication MASTER_VOL SLAVE_HOST::SLAVE_VOL stop force
+----------------------------------------------------------------------------
+2.  Probe the new peer from one of the existing peers to bring it into
+the cluster.
++
+-------------------------------------
+# gluster peer probe sys5.example.com
+-------------------------------------
+3.  Ensure that the new brick `(sys5.example.com:/rhgs/brick1)` that is
+replacing the old brick `(sys0.example.com:/rhgs/brick1)` is empty.
+4.  If the geo-replication session is configured, perform the following
+steps:
+1.  Setup the geo-replication session by generating the ssh keys:
++
+---------------------------------------
+# gluster system:: execute gsec_create 
+---------------------------------------
+2.  Create geo-replication session again with `force` option to
+distribute the keys from new nodes to Slave nodes.
++
+---------------------------------------------------------------------------------------
+# gluster volume geo-replication MASTER_VOL SLAVE_HOST::SLAVE_VOL create push-pem force
+---------------------------------------------------------------------------------------
+3.  After successfully setting up the shared storage volume, when a new
+node is replaced in the cluster, the shared storage is not mounted
+automatically on this node. Neither is the `/etc/fstab ` entry added for
+the shared storage on this node. To make use of shared storage on this
+node, execute the following commands:
++
+----------------------------------------------------------------------
+# mount -t glusterfs local node's ip:gluster_shared_storage
+/var/run/gluster/shared_storage
+# cp /etc/fstab /var/run/gluster/fstab.tmp
+# echo  local node's ip:/gluster_shared_storage
+/var/run/gluster/shared_storage/ glusterfs defaults 0 0" >> /etc/fstab
+----------------------------------------------------------------------
++
+For more information on setting up shared storage volume, see
+<<chap-Managing_Red_Hat_Storage_Volumes-Shared_Volume>>.
+4.  Configure the meta-volume for geo-replication:
++
+---------------------------------------------------------------------------------------------
+# gluster volume geo-replication MASTER_VOL SLAVE_HOST::SLAVE_VOL config use_meta_volume true
+---------------------------------------------------------------------------------------------
++
+For more information on configuring meta-volume, see
+<<../features/chap-Managing_Geo-replication.adoc#chap-Managing_Geo-replication-Meta_Volume, 
+Configuring a Meta-Volume>>.
+5.  Retrieve the brick paths in `sys0.example.com` using the following
+command:
++
+-------------------------------
+# gluster volume info <VOLNAME>
+-------------------------------
++
+---------------------------------------------
+Volume Name: vol
+Type: Replicate
+Volume ID: 0xde822e25ebd049ea83bfaa3c4be2b440
+Status: Started
+Snap Volume: no
+Number of Bricks: 1 x 2 = 2
+Transport-type: tcp
+Bricks:
+Brick1: sys0.example.com:/rhgs/brick1
+Brick2: sys1.example.com:/rhgs/brick1
+Options Reconfigured:
+performance.readdir-ahead: on
+snap-max-hard-limit: 256
+snap-max-soft-limit: 90
+auto-delete: disable
+---------------------------------------------
++
+Brick path in `sys0.example.com` is `/rhgs/brick1`. This has to be
+replaced with the brick in the newly added host, `sys5.example.com`.
+6.  Create the required brick path in sys5.example.com.For example, if
+/rhs/brick is the XFS mount point in sys5.example.com, then create a
+brick directory in that path.
++
+--------------------
+# mkdir /rhgs/brick1
+--------------------
+7.  Execute the `replace-brick` command with the force option:
++
+-----------------------------------------------------------------------------------------------------------
+# gluster volume replace-brick vol sys0.example.com:/rhgs/brick1 sys5.example.com:/rhgs/brick1 commit force
+volume replace-brick: success: replace-brick commit successful
+-----------------------------------------------------------------------------------------------------------
+8.  Verify that the new brick is online.
++
+-------------------------------------------------------------------
+# gluster volume status
+Status of volume: vol
+Gluster process                                  Port    Online Pid
+Brick sys5.example.com:/rhgs/brick1           49156    Y    5731
+Brick sys1.example.com:/rhgs/brick1            49153    Y    5354
+-------------------------------------------------------------------
+9.  Initiate self-heal on the volume. The status of the heal process can
+be seen by executing the command:
++
+-----------------------------
+# gluster volume heal VOLNAME
+-----------------------------
+10. The status of the heal process can be seen by executing the command:
++
+----------------------------------
+# gluster volume heal VOLNAME info
+----------------------------------
+11. Detach the original machine from the trusted pool.
++
+--------------------------------------
+# gluster peer detach sys0.example.com
+--------------------------------------
+12. Ensure that after the self-heal completes, the extended attributes
+are set to zero on the other bricks in the replica.
++
+-----------------------------------------------------------------------------------
+# getfattr -d -m. -e hex /rhgs/brick1
+getfattr: Removing leading '/' from absolute path names
+#file: rhgs/brick1
+security.selinux=0x756e636f6e66696e65645f753a6f626a6563745f723a66696c655f743a733000
+trusted.afr.vol-client-0=0x000000000000000000000000
+trusted.afr.vol-client-1=0x000000000000000000000000
+trusted.gfid=0x00000000000000000000000000000001
+trusted.glusterfs.dht=0x0000000100000000000000007ffffffe
+trusted.glusterfs.volume-id=0xde822e25ebd049ea83bfaa3c4be2b440
+-----------------------------------------------------------------------------------
++
+In this example, the extended attributes `trusted.afr.vol-client-0` and
+`trusted.afr.vol-client-1` have zero values. This means that the data on
+the two bricks is identical. If these attributes are not zero after
+self-heal is completed, the data has not been synchronised correctly.
+13. Start the geo-replication session using `force` option:
++
+-----------------------------------------------------------------------------
+# gluster volume geo-replication MASTER_VOL SLAVE_HOST::SLAVE_VOL start force
+-----------------------------------------------------------------------------
+
+[[Replacing_a_Host_Machine_with_the_Same_Hostname]]
+== Replacing a Host Machine with the Same Hostname
+
+You can replace a failed host with another node having the same FQDN
+(Fully Qualified Domain Name). A host in a {{ book.productTitle }}
+Trusted Storage Pool has its own identity called the UUID generated by
+the glusterFS Management Daemon.The UUID for the host is available in
+`/var/lib/glusterd/glusterd/info` file.
+
+In the following example, the host with the FQDN as sys0.example.com was
+irrecoverable and must to be replaced with a host, having the same FQDN.
+The following steps have to be performed on the new host.
+
+1.  Stop the geo-replication session if configured by executing the
+following command:
++
+------------------------------------------------------------------------------
+ # gluster volume geo-replication MASTER_VOL SLAVE_HOST::SLAVE_VOL stop force 
+------------------------------------------------------------------------------
+2.  Stop the `glusterd` service on the sys0.example.com.
++
+-----------------------
+# service glusterd stop
+-----------------------
+3.  Retrieve the UUID of the failed host (sys0.example.com) from another
+of the {{ book.productTitle }} Trusted Storage Pool by executing the
+following command:
++
+------------------------------------------
+# gluster peer status
+Number of Peers: 2
+
+Hostname: sys1.example.com
+Uuid: 1d9677dc-6159-405e-9319-ad85ec030880
+State: Peer in Cluster (Connected)
+
+Hostname: sys0.example.com
+Uuid: b5ab2ec3-5411-45fa-a30f-43bd04caf96b
+State: Peer Rejected (Connected)
+------------------------------------------
++
+Note that the UUID of the failed host is
+`b5ab2ec3-5411-45fa-a30f-43bd04caf96b`
+4.  Edit the `glusterd.info` file in the new host and include the UUID
+of the host you retrieved in the previous step.
++
+-----------------------------------------
+# cat /var/lib/glusterd/glusterd.info
+UUID=b5ab2ec3-5411-45fa-a30f-43bd04caf96b
+operating-version=30703
+-----------------------------------------
++
+______________________________________________________________________________________________
+*Note*
+
+The operating version of this node must be same as in other nodes of the
+trusted storage pool.
+______________________________________________________________________________________________
+5.  Select any host (say for example, sys1.example.com) in the
+{{ book.productTitle }} Trusted Storage Pool and retrieve its UUID from the
+`glusterd.info` file.
++
+----------------------------------------------
+# grep -i uuid /var/lib/glusterd/glusterd.info
+UUID=8cc6377d-0153-4540-b965-a4015494461c
+----------------------------------------------
+6.  Gather the peer information files from the host (sys1.example.com)
+in the previous step. Execute the following command in that host
+(sys1.example.com) of the cluster.
++
+-------------------------------------
+# cp -a /var/lib/glusterd/peers /tmp/
+-------------------------------------
+7.  Remove the peer file corresponding to the failed host
+(sys0.example.com) from the `/tmp/peers` directory.
++
+----------------------------------------------------
+# rm /tmp/peers/b5ab2ec3-5411-45fa-a30f-43bd04caf96b
+----------------------------------------------------
++
+Note that the UUID corresponds to the UUID of the failed host
+(sys0.example.com) retrieved in Step 3.
+8.  Archive all the files and copy those to the failed
+host(sys0.example.com).
++
+-----------------------------------
+# cd /tmp; tar -cvf peers.tar peers
+-----------------------------------
+9.  Copy the above created file to the new peer.
++
+-----------------------------------------------
+# scp /tmp/peers.tar root@sys0.example.com:/tmp
+-----------------------------------------------
+10. Copy the extracted content to the `/var/lib/glusterd/peers`
+directory. Execute the following command in the newly added host with
+the same name (sys0.example.com) and IP Address.
++
+-------------------------------------
+# tar -xvf /tmp/peers.tar
+# cp peers/* /var/lib/glusterd/peers/
+-------------------------------------
+11. Select any other host in the cluster other than the node
+(sys1.example.com) selected in step 5. Copy the peer file corresponding
+to the UUID of the host retrieved in Step 4 to the new host
+(sys0.example.com) by executing the following command:
++
+------------------------------------------------------------------------------------------------
+# scp /var/lib/glusterd/peers/<UUID-retrieved-from-step4> root@Example1:/var/lib/glusterd/peers/
+------------------------------------------------------------------------------------------------
+12. Retrieve the brick directory information, by executing the following
+command in any host in the cluster.
++
+---------------------------------------------
+# gluster volume info
+Volume Name: vol
+Type: Replicate
+Volume ID: 0x8f16258c88a0498fbd53368706af7496
+Status: Started
+Snap Volume: no
+Number of Bricks: 1 x 2 = 2
+Transport-type: tcp
+Bricks:
+Brick1: sys0.example.com:/rhgs/brick1
+Brick2: sys1.example.com:/rhgs/brick1
+Options Reconfigured:
+performance.readdir-ahead: on
+snap-max-hard-limit: 256
+snap-max-soft-limit: 90
+auto-delete: disable
+---------------------------------------------
++
+In the above example, the brick path in sys0.example.com is,
+`/rhgs/brick1`. If the brick path does not exist in sys0.example.com,
+perform steps __a__, __b__, and __c__.
+1.  Create a brick path in the host, sys0.example.com.
++
+------------------
+mkdir /rhgs/brick1
+------------------
+2.  Retrieve the volume ID from the existing brick of another host by
+executing the following command on any host that contains the bricks for
+the volume.
++
+------------------------------------
+# getfattr -d -m. -ehex <brick-path>
+------------------------------------
++
+Copy the volume-id.
++
+--------------------------------------------------------------
+# getfattr -d -m. -ehex /rhgs/brick1
+getfattr: Removing leading '/' from absolute path names
+# file: rhgs/brick1
+trusted.afr.vol-client-0=0x000000000000000000000000
+trusted.afr.vol-client-1=0x000000000000000000000000
+trusted.gfid=0x00000000000000000000000000000001
+trusted.glusterfs.dht=0x0000000100000000000000007ffffffe
+trusted.glusterfs.volume-id=0x8f16258c88a0498fbd53368706af7496
+--------------------------------------------------------------
++
+In the above example, the volume id is
+0x8f16258c88a0498fbd53368706af7496
+3.  Set this volume ID on the brick created in the newly added host and
+execute the following command on the newly added host
+(sys0.example.com).
++
+---------------------------------------------------------------------
+# setfattr -n trusted.glusterfs.volume-id -v <volume-id> <brick-path>
+---------------------------------------------------------------------
++
+For Example:
++
+------------------------------------------------------------------------------------------------
+# setfattr -n trusted.glusterfs.volume-id -v 0x8f16258c88a0498fbd53368706af7496 /rhs/brick2/drv2
+------------------------------------------------------------------------------------------------
++
+Data recovery is possible only if the volume type is replicate or
+distribute-replicate. If the volume type is plain distribute, you can
+skip steps 12 and 13.
+13. Create a FUSE mount point to mount the glusterFS volume.
++
+---------------------------------------------------
+# mount -t glusterfs <server-name>:/VOLNAME <mount>
+---------------------------------------------------
+14. Perform the following operations to change the Automatic File
+Replication extended attributes so that the heal process happens from
+the other brick (sys1.example.com:/rhgs/brick1) in the replica pair to
+the new brick (sys0.example.com:/rhgs/brick1). Note that /mnt/r2 is the
+FUSE mount path.
+1.  Create a new directory on the mount point and ensure that a
+directory with such a name is not already present.
++
+-----------------------------------------
+# mkdir /mnt/r2/<name-of-nonexistent-dir>
+-----------------------------------------
+2.  Delete the directory and set the extended attributes.
++
+-----------------------------------------------------
+# rmdir /mnt/r2/<name-of-nonexistent-dir>
+# setfattr -n trusted.non-existent-key -v abc /mnt/r2
+# setfattr -x trusted.non-existent-key /mnt/r2
+-----------------------------------------------------
+3.  Ensure that the extended attributes on the other bricks in the
+replica (in this example, `trusted.afr.vol-client-0`) is not set to
+zero.
++
+-----------------------------------------------------------------------------------
+# getfattr -d -m. -e hex /rhgs/brick1 # file: rhgs/brick1
+security.selinux=0x756e636f6e66696e65645f753a6f626a6563745f723a66696c655f743a733000
+trusted.afr.vol-client-0=0x000000000000000300000002
+trusted.afr.vol-client-1=0x000000000000000000000000
+trusted.gfid=0x00000000000000000000000000000001
+trusted.glusterfs.dht=0x0000000100000000000000007ffffffe
+trusted.glusterfs.volume-id=0x8f16258c88a0498fbd53368706af7496
+-----------------------------------------------------------------------------------
++
+__________________________________________________________________________________________________________
+*Note*
+
+You must ensure to perform steps 12, 13, and 14 for all the volumes
+having bricks from `sys0.example.com`.
+__________________________________________________________________________________________________________
+15. Start the `glusterd` service.
++
+------------------------
+# service glusterd start
+------------------------
+16. Perform the self-heal operation on the restored volume.
++
+-----------------------------
+# gluster volume heal VOLNAME
+-----------------------------
+17. You can view the gluster volume self-heal status by executing the
+following command:
++
+----------------------------------
+# gluster volume heal VOLNAME info
+----------------------------------
+18. If the geo-replication session is configured, perform the following
+steps:
+1.  Setup the geo-replication session by generating the ssh keys:
++
+---------------------------------------
+# gluster system:: execute gsec_create 
+---------------------------------------
+2.  Create geo-replication session again with `force` option to
+distribute the keys from new nodes to Slave nodes.
++
+---------------------------------------------------------------------------------------
+# gluster volume geo-replication MASTER_VOL SLAVE_HOST::SLAVE_VOL create push-pem force
+---------------------------------------------------------------------------------------
+3.  After successfully setting up the shared storage volume, when a new
+node is replaced in the cluster, the shared storage is not mounted
+automatically on this node. Neither is the `/etc/fstab ` entry added for
+the shared storage on this node. To make use of shared storage on this
+node, execute the following commands:
++
+-----------------------------------------------------------------------
+# mount -t glusterfs <local node's ip>:gluster_shared_storage
+/var/run/gluster/shared_storage
+# cp /etc/fstab /var/run/gluster/fstab.tmp
+# echo "<local node's ip>:/gluster_shared_storage
+/var/run/gluster/shared_storage/ glusterfs defaults 0 0" >> /etc/fstab 
+-----------------------------------------------------------------------
++
+For more information on setting up shared storage volume, see
+<<chap-Managing_Red_Hat_Storage_Volumes-Shared_Volume>>.
+4.  Configure the meta-volume for geo-replication:
++
+---------------------------------------------------------------------------------------------
+# gluster volume geo-replication MASTER_VOL SLAVE_HOST::SLAVE_VOL config use_meta_volume true
+---------------------------------------------------------------------------------------------
+5.  Start the geo-replication session using `force` option:
++
+-----------------------------------------------------------------------------
+# gluster volume geo-replication MASTER_VOL SLAVE_HOST::SLAVE_VOL start force
+-----------------------------------------------------------------------------
+
+*Replacing a host with the same Hostname in a two-node {{ book.productTitle }}
+Trusted Storage Pool.*
+
+If there are only 2 hosts in the {{ book.productTitle }} Trusted Storage
+Pool where the host sys0.example.com must be replaced, perform the
+following steps:
+
+1.  Stop the geo-replication session if configured by executing the
+following command:
++
+------------------------------------------------------------------------------
+ # gluster volume geo-replication MASTER_VOL SLAVE_HOST::SLAVE_VOL stop force 
+------------------------------------------------------------------------------
+2.  Stop the `glusterd` service on sys0.example.com.
++
+-----------------------
+# service glusterd stop
+-----------------------
+3.  Retrieve the UUID of the failed host (sys0.example.com) from another
+peer in the {{ book.productTitle }} Trusted Storage Pool by executing
+the following command:
++
+------------------------------------------
+# gluster peer status
+Number of Peers: 1
+
+Hostname: sys0.example.com
+Uuid: b5ab2ec3-5411-45fa-a30f-43bd04caf96b
+State: Peer Rejected (Connected)
+------------------------------------------
++
+Note that the UUID of the failed host is
+`b5ab2ec3-5411-45fa-a30f-43bd04caf96b`
+4.  Edit the `glusterd.info` file in the new host (sys0.example.com) and
+include the UUID of the host you retrieved in the previous step.
++
+-----------------------------------------
+# cat /var/lib/glusterd/glusterd.info
+UUID=b5ab2ec3-5411-45fa-a30f-43bd04caf96b
+operating-version=30703
+-----------------------------------------
++
+______________________________________________________________________________________________
+*Note*
+
+The operating version of this node must be same as in other nodes of the
+trusted storage pool.
+______________________________________________________________________________________________
+5.  Create the peer file in the newly created host (sys0.example.com) in
+/var/lib/glusterd/peers/<uuid-of-other-peer> with the name of the UUID
+of the other host (sys1.example.com).
++
+UUID of the host can be obtained with the following:
++
+---------------------------
+# gluster system:: uuid get
+---------------------------
++
+------------------------------------------
+For example,
+# gluster system:: uuid get
+UUID: 1d9677dc-6159-405e-9319-ad85ec030880
+------------------------------------------
++
+In this case the UUID of other peer is
+`1d9677dc-6159-405e-9319-ad85ec030880`
+6.  Create a file
+`/var/lib/glusterd/peers/1d9677dc-6159-405e-9319-ad85ec030880` in
+sys0.example.com, with the following command:
++
+--------------------------------------------------------------------
+# touch /var/lib/glusterd/peers/1d9677dc-6159-405e-9319-ad85ec030880
+--------------------------------------------------------------------
++
+The file you create must contain the following information:
++
+-------------------------
+UUID=<uuid-of-other-node>
+state=3
+hostname=<hostname>
+-------------------------
+7.  Continue to perform steps 12 to 18 as documented in the previous
+procedure.
+
+[[sect-Rebalancing_Volumes]]
+= Rebalancing Volumes
+
+If a volume has been expanded or shrunk using the `add-brick` or
+`remove-brick` commands, the data on the volume needs to be rebalanced
+among the servers.
+
+________________________________________________________________________________________________________________________________________________________________________________________________________
+*Note*
+
+In a non-replicated volume, all bricks should be online to perform the
+`rebalance` operation using the start option. In a replicated volume, at
+least one of the bricks in the replica should be online.
+________________________________________________________________________________________________________________________________________________________________________________________________________
+
+To rebalance a volume, use the following command on any of the servers:
+
+----------------------------------------
+# gluster volume rebalance VOLNAME start
+----------------------------------------
+
+For example:
+
+--------------------------------------------------------------
+# gluster volume rebalance test-volume start
+Starting rebalancing on volume test-volume has been successful
+--------------------------------------------------------------
+
+A `rebalance` operation, without `force` option, will attempt to balance
+the space utilized across nodes, thereby skipping files to rebalance in
+case this would cause the target node of migration to have lesser
+available space than the source of migration. This leads to link files
+that are still left behind in the system and hence may cause performance
+issues in access when a large number of such link files are present.
+
+{% if book.productTitle != "GlusterFS" %}
+Enhancements made to the file rename and rebalance operations in
+{{ book.productTitle }} 2.1 update 5 requires that all the clients connected to
+a cluster operate with the same or later versions. If the clients
+operate on older versions, and a rebalance operation is performed, the
+following warning message is displayed and the rebalance operation will
+not be executed.
+{% endif %}
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+volume rebalance: VOLNAME: failed: Volume VOLNAME has one or more connected clients of a version lower than {{ book.productTitle }}-2.1 update 5. Starting rebalance in this state could lead to data loss.
+Please disconnect those clients before attempting this command again.
+ 
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+{{ book.company }} strongly recommends you to disconnect all the older clients
+before executing the rebalance command to avoid a potential data loss
+scenario.
+
+__________________________________________________________________________________________________________________________________________________________________________
+*Warning*
+
+The `Rebalance` command can be executed with the force option even when
+the older clients are connected to the cluster. However, this could lead
+to a data loss situation.
+__________________________________________________________________________________________________________________________________________________________________________
+
+A `rebalance` operation with `force`, balances the data based on the
+layout, and hence optimizes or does away with the link files, but may
+lead to an imbalanced storage space used across bricks. This option is
+to be used only when there are a large number of link files in the
+system.
+
+To rebalance a volume forcefully, use the following command on any of
+the servers:
+
+----------------------------------------------
+# gluster volume rebalance VOLNAME start force
+----------------------------------------------
+
+For example:
+
+--------------------------------------------------------------
+# gluster volume rebalance test-volume start force
+Starting rebalancing on volume test-volume has been successful
+--------------------------------------------------------------
+
+[[Stopping_a_Rebalance_Operation_1]]
+== Rebalance Throttling
+
+Rebalance process is made multithreaded to handle multiple files
+migration for enhancing the performance. During multiple file migration,
+there can be a severe impact on storage system performance and a
+throttling mechanism is provided to manage it.
+
+By default, the rebalance throttling is started in the `normal` mode.
+Configure the throttling modes to adjust the rate at which the files
+must be migrated
+
+------------------------------------------------------------------
+# gluster volume set VOLNAME rebal-throttle lazy|normal|aggressive
+------------------------------------------------------------------
+
+For example:
+
+----------------------------------------------------
+# gluster volume set test-volume rebal-throttle lazy
+----------------------------------------------------
+
+[[Displaying_Status_of_a_Rebalance_Operation]]
+== Displaying Status of a Rebalance Operation
+
+To display the status of a volume rebalance operation, use the following
+command:
+
+-----------------------------------------
+# gluster volume rebalance VOLNAME status
+-----------------------------------------
+
+For example:
+
+--------------------------------------------------------------------------------------
+# gluster volume rebalance test-volume status
+     Node    Rebalanced-files          size       scanned      failures         status
+---------         -----------   -----------   -----------   -----------   ------------
+localhost                 112         14567           150            0    in progress
+10.16.156.72              140          2134           201            2    in progress
+--------------------------------------------------------------------------------------
+
+The time taken to complete the rebalance operation depends on the number
+of files on the volume and their size. Continue to check the rebalancing
+status, and verify that the number of rebalanced or scanned files keeps
+increasing.
+
+For example, running the status command again might display a result
+similar to the following:
+
+--------------------------------------------------------------------------------------
+# gluster volume rebalance test-volume status
+     Node    Rebalanced-files          size       scanned      failures         status
+---------         -----------   -----------   -----------   -----------   ------------
+localhost                 112         14567           150            0    in progress
+10.16.156.72              140          2134           201            2    in progress
+--------------------------------------------------------------------------------------
+
+The rebalance status will be shown as `completed` the following when the
+rebalance is complete:
+
+--------------------------------------------------------------------------------------
+# gluster volume rebalance test-volume status
+     Node    Rebalanced-files          size       scanned      failures         status
+---------         -----------   -----------   -----------   -----------   ------------
+localhost                 112         15674           170            0       completed
+10.16.156.72              140          3423           321            2       completed
+--------------------------------------------------------------------------------------
+
+[[Stopping_a_Rebalance_Operation]]
+== Stopping a Rebalance Operation
+
+To stop a rebalance operation, use the following command:
+
+---------------------------------------
+# gluster volume rebalance VOLNAME stop
+---------------------------------------
+
+For example:
+
+--------------------------------------------------------------------------------------
+# gluster volume rebalance test-volume stop
+     Node    Rebalanced-files          size       scanned      failures         status
+---------         -----------   -----------   -----------   -----------   ------------
+localhost                 102         12134           130            0         stopped
+10.16.156.72              110          2123           121            2         stopped
+Stopped rebalance process on volume test-volume
+--------------------------------------------------------------------------------------
+
+[[chap-Managing_Red_Hat_Storage_Volumes-Shared_Volume]]
+= Setting up Shared Storage Volume
+
+Features like Snapshot Scheduler, NFS Ganesha and geo-replication
+require a shared storage to be available across all nodes of the
+cluster. A gluster volume named `gluster_shared_storage` is made
+available for this purpose, and is facilitated by the following volume
+set option.
+
+-----------------------------
+cluster.enable-shared-storage
+-----------------------------
+
+This option accepts the following two values:
+
+* *enable.*
++
+When the volume set option is enabled, a gluster volume named
+`gluster_shared_storage` is created in the cluster, and is mounted at
+`/var/run/gluster/shared_storage` on all the nodes in the cluster.
++
+________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+*Note*
+
+** This option cannot be enabled if there is only one node present in
+the cluster, or if only one node is online in the cluster.
+** The volume created is either a replica 2, or a replica 3 volume. This
+depends on the number of nodes which are online in the cluster at the
+time of enabling this option and each of these nodes will have one brick
+participating in the volume. The brick path participating in the volume
+is `/var/lib/glusterd/ss_brick.`
+** The mount entry is also added to `/etc/fstab` as part of `enable`.
+** Before enabling this feature make sure that there is no volume named
+`gluster_shared_storage` in the cluster. This volume name is reserved
+for internal use only
+________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
++
+After successfully setting up the shared storage volume, when a new node
+is added to the cluster, the shared storage is not mounted automatically
+on this node. Neither is the `/etc/fstab` entry added for the shared
+storage on this node. To make use of shared storage on this node,
+execute the following commands:
++
+----------------------------------------------------------------------
+# mount -t glusterfs <local node's ip>:gluster_shared_storage
+/var/run/gluster/shared_storage
+# cp /etc/fstab /var/run/gluster/fstab.tmp
+# echo "<local node's ip>:/gluster_shared_storage
+/var/run/gluster/shared_storage/ glusterfs defaults 0 0" >> /etc/fstab
+----------------------------------------------------------------------
+* *disable.*
++
+When the volume set option is disabled, the `gluster_shared_storage`
+volume is unmounted on all the nodes in the cluster, and then the volume
+is deleted. The mount entry from `/etc/fstab` as part of `disable` is
+also removed.
+
+For example:
+
+-------------------------------------------------------------
+# gluster volume set all cluster.enable-shared-storage enable
+volume set: success
+-------------------------------------------------------------
+
+[[Stopping_Volumes]]
+= Stopping Volumes
+
+To stop a volume, use the following command:
+
+-----------------------------
+# gluster volume stop VOLNAME
+-----------------------------
+
+For example, to stop test-volume:
+
+---------------------------------------------------------------------------------
+# gluster volume stop test-volume
+Stopping volume will make its data inaccessible. Do you want to continue? (y/n) y
+Stopping volume test-volume has been successful
+---------------------------------------------------------------------------------
+
+[[Deleting_Volumes]]
+= Deleting Volumes
+
+___________________________________________________________________________________________________________________________________________________________________________________________
+*Important*
+
+Volumes must be unmounted and stopped before you can delete them. Ensure
+that you also remove entries relating to this volume from the
+`/etc/fstab` file after the volume has been deleted.
+___________________________________________________________________________________________________________________________________________________________________________________________
+
+To delete a volume, use the following command:
+
+-------------------------------
+# gluster volume delete VOLNAME
+-------------------------------
+
+For example, to delete test-volume:
+
+---------------------------------------------------------------------------------------------
+# gluster volume delete test-volume
+Deleting volume will erase all information about the volume. Do you want to continue? (y/n) y
+Deleting volume test-volume has been successful
+---------------------------------------------------------------------------------------------
+
+[[sect-Managing_Split-brain]]
+= Managing Split-brain
+
+Split-brain is a state when a data or availability inconsistencies
+originating from the maintenance of two separate data sets with overlap
+in scope, either because of servers in a network design, or a failure
+condition based on servers not communicating and synchronizing their
+data to each other.
+
+In {{ book.productTitle }}, split-brain is a term applicable to
+{{ book.productTitle }} volumes in a replicate configuration. A file is said to
+be in split-brain when the copies of the same file in different bricks
+that constitute the replica-pair have mismatching data and/or meta-data
+contents such that they are conflicting each other and automatic healing
+is not possible. In this scenario, you can decide which is the correct
+file (source) and which is the one that require healing (sink) by
+inspecting at the mismatching files from the backend bricks.
+
+The AFR translator in glusterFS makes use of extended attributes to keep
+track of the operations on a file. These attributes determine which
+brick is the source and which brick is the sink for a file that require
+healing. If the files are clean, the extended attributes are all zeroes
+indicating that no heal is necessary. When a heal is required, they are
+marked in such a way that there is a distinguishable source and sink and
+the heal can happen automatically. But, when a split brain occurs, these
+extended attributes are marked in such a way that both bricks mark
+themselves as sources, making automatic healing impossible.
+
+When a split-brain occurs, applications cannot perform certain
+operations like _read_ and _write_ on the file. Accessing the files
+results in the application receiving an Input/Output Error.
+
+The three types of split-brains that occur in {{ book.productTitle }}
+are:
+
+* Data split-brain: Contents of the file under split-brain are different
+in different replica pairs and automatic healing is not possible.
+* Metadata split-brain : The metadata of the files (example, user
+defined extended attribute) are different and automatic healing is not
+possible.
+* Entry split-brain: This happens when a file have different gfids on
+each of the replica pair.
+
+The only way to resolve split-brains is by manually inspecting the file
+contents from the backend and deciding which is the true copy (source )
+and modifying the appropriate extended attributes such that healing can
+happen automatically.
+
+[[sect-Preventing_Split-brain]]
+== Preventing Split-brain
+
+To prevent split-brain in the trusted storage pool, you must configure
+server-side and client-side quorum.
+
+[[Configuring_Server-Side_Quorum]]
+=== Configuring Server-Side Quorum
+
+The quorum configuration in a trusted storage pool determines the number
+of server failures that the trusted storage pool can sustain. If an
+additional failure occurs, the trusted storage pool will become
+unavailable. If too many server failures occur, or if there is a problem
+with communication between the trusted storage pool nodes, it is
+essential that the trusted storage pool be taken offline to prevent data
+loss.
+
+After configuring the quorum ratio at the trusted storage pool level,
+you must enable the quorum on a particular volume by setting
+`cluster.server-quorum-type` volume option as `server`. For more
+information on this volume option, see <<Configuring_Volume_Options>>.
+
+Configuration of the quorum is necessary to prevent network partitions
+in the trusted storage pool. Network Partition is a scenario where, a
+small set of nodes might be able to communicate together across a
+functioning part of a network, but not be able to communicate with a
+different set of nodes in another part of the network. This can cause
+undesirable situations, such as split-brain in a distributed system. To
+prevent a split-brain situation, all the nodes in at least one of the
+partitions must stop running to avoid inconsistencies.
+
+This quorum is on the server-side, that is, the `glusterd` service.
+Whenever the `glusterd` service on a machine observes that the quorum is
+not met, it brings down the bricks to prevent data split-brain. When the
+network connections are brought back up and the quorum is restored, the
+bricks in the volume are brought back up. When the quorum is not met for
+a volume, any commands that update the volume configuration or peer
+addition or detach are not allowed. It is to be noted that both, the
+`glusterd` service not running and the network connection between two
+machines being down are treated equally.
+
+You can configure the quorum percentage ratio for a trusted storage
+pool. If the percentage ratio of the quorum is not met due to network
+outages, the bricks of the volume participating in the quorum in those
+nodes are taken offline. By default, the quorum is met if the percentage
+of active nodes is more than 50% of the total storage nodes. However, if
+the quorum ratio is manually configured, then the quorum is met only if
+the percentage of active storage nodes of the total storage nodes is
+greater than _or equal to_ the set value.
+
+To configure the quorum ratio, use the following command:
+
+---------------------------------------------------------------
+# gluster volume set all cluster.server-quorum-ratio PERCENTAGE
+---------------------------------------------------------------
+
+For example, to set the quorum to 51% of the trusted storage pool:
+
+--------------------------------------------------------
+# gluster volume set all cluster.server-quorum-ratio 51%
+--------------------------------------------------------
+
+In this example, the quorum ratio setting of 51% means that more than
+half of the nodes in the trusted storage pool must be online and have
+network connectivity between them at any given time. If a network
+disconnect happens to the storage pool, then the bricks running on those
+nodes are stopped to prevent further writes.
+
+You must ensure to enable the quorum on a particular volume to
+participate in the server-side quorum by running the following command:
+
+--------------------------------------------------------------
+# gluster volume set VOLNAME cluster.server-quorum-type server
+--------------------------------------------------------------
+
+_________________________________________________________________________________________________________________________________________________________________________________________
+*Important*
+
+For a two-node trusted storage pool, it is important to set the quorum
+ratio to be _greater than_ 50% so that two nodes separated from each
+other do not both believe they have a quorum.
+_________________________________________________________________________________________________________________________________________________________________________________________
+
+For a replicated volume with two nodes and one brick on each machine, if
+the server-side quorum is enabled and one of the nodes goes offline, the
+other node will also be taken offline because of the quorum
+configuration. As a result, the high availability provided by the
+replication is ineffective. To prevent this situation, a dummy node can
+be added to the trusted storage pool which does not contain any bricks.
+This ensures that even if one of the nodes which contains data goes
+offline, the other node will remain online. Note that if the dummy node
+and one of the data nodes goes offline, the brick on other node will be
+also be taken offline, and will result in data unavailability.
+
+[[Configuring_Client-Side_Quorum]]
+=== Configuring Client-Side Quorum
+
+Replication in {{ book.productTitle }} Server allows modifications as
+long as at least one of the bricks in a replica group is online. In a
+network-partition scenario, different clients connect to different
+bricks in the replicated environment. In this situation different
+clients may modify the same file on different bricks. When a client is
+witnessing brick disconnections, a file could be modified on different
+bricks at different times while the other brick is off-line in the
+replica. For example, in a 1 X 2 replicate volume, while modifying the
+same file, it can so happen that client C1 can connect only to brick B1
+and client C2 can connect only to brick B2. These situations lead to
+split-brain and the file becomes unusable and manual intervention is
+required to fix this issue.
+
+Client-side quorum is implemented to minimize split-brains. Client-side
+quorum configuration determines the number of bricks that must be up for
+it to allow data modification. If client-side quorum is not met, files
+in that replica group become read-only. This client-side quorum
+configuration applies for all the replica groups in the volume, if
+client-side quorum is not met for `m` of `n` replica groups only `m`
+replica groups becomes read-only and the rest of the replica groups
+continue to allow data modifications.
+
+image:images/client-side_quorum.png[image]
+
+In the above scenario, when the client-side quorum is not met for
+replica group `A`, only replica group `A` becomes read-only. Replica
+groups `B` and `C` continue to allow data modifications.
+
+___________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+*Important*
+
+1.  If `cluster.quorum-type` is `fixed`, writes will continue till
+number of bricks up and running in replica pair is equal to the count
+specified in `cluster.quorum-count` option. This is irrespective of
+first or second or third brick. All the bricks are equivalent here.
+2.  If `cluster.quorum-type` is `auto`, then at least ceil (n/2) number
+of bricks need to be up to allow writes, where `n` is the replica count.
+For example,
++
+----------------------------------
+for replica 2, ceil(2/2)= 1 brick
+for replica 3, ceil(3/2)= 2 bricks
+for replica 4, ceil(4/2)= 2 bricks
+for replica 5, ceil(5/2)= 3 bricks
+for replica 6, ceil(6/2)= 3 bricks
+and so on
+----------------------------------
++
+In addition, for `auto`, if the number of bricks that are up is exactly
+ceil (n/2), *and* `n` is an even number, then the first brick of the
+replica must also be up to allow writes. For replica 6, if more than 3
+bricks are up, then it can be any of the bricks. But if exactly 3 bricks
+are up, then the first brick has to be up and running.
+3.  In a three-way replication setup, it is recommended to set
+`cluster.quorum-type` to `auto` to avoid split brains. If the quorum is
+not met, the replica pair becomes read-only.
+___________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+
+Configure the client-side quorum using `cluster.quorum-type` and
+`cluster.quorum-count` options. For more information on these options,
+see <<Configuring_Volume_Options>>.
+
+___________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+*Important*
+
+When you integrate {{ book.productTitle }} with Red Hat Enterprise
+Virtualization or Red Hat OpenStack, the client-side quorum is enabled
+when you run `gluster volume set VOLNAME group virt` command. If on a
+two replica set up, if the first brick in the replica pair is offline,
+virtual machines will be paused because quorum is not met and writes are
+disallowed.
+
+Consistency is achieved at the cost of fault tolerance. If
+fault-tolerance is preferred over consistency, disable client-side
+quorum with the following command:
+
+------------------------------------------
+# gluster volume reset VOLNAME quorum-type
+------------------------------------------
+___________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+
+*Example - Setting up server-side and client-side quorum to avoid
+split-brain scenario.*
+
+This example provides information on how to set server-side and
+client-side quorum on a Distribute Replicate volume to avoid split-brain
+scenario. The configuration of this example has 2 X 2 ( 4 bricks)
+Distribute Replicate setup.
+
+-----------------------------------------------
+# gluster volume info testvol
+Volume Name: testvol
+Type: Distributed-Replicate
+Volume ID: 0df52d58-bded-4e5d-ac37-4c82f7c89cfh
+Status: Created
+Number of Bricks: 2 x 2 = 4
+Transport-type: tcp
+Bricks:
+Brick1: server1:/rhgs/brick1
+Brick2: server2:/rhgs/brick2
+Brick3: server3:/rhgs/brick3
+Brick4: server4:/rhgs/brick4
+ 
+-----------------------------------------------
+
+*Setting Server-side Quorum*
+
+Enable the quorum on a particular volume to participate in the
+server-side quorum by running the following command:
+
+--------------------------------------------------------------
+# gluster volume set VOLNAME cluster.server-quorum-type server
+--------------------------------------------------------------
+
+Set the quorum to 51% of the trusted storage pool:
+
+--------------------------------------------------------
+# gluster volume set all cluster.server-quorum-ratio 51%
+--------------------------------------------------------
+
+In this example, the quorum ratio setting of 51% means that more than
+half of the nodes in the trusted storage pool must be online and have
+network connectivity between them at any given time. If a network
+disconnect happens to the storage pool, then the bricks running on those
+nodes are stopped to prevent further writes.
+
+*Setting Client-side Quorum*
+
+Set the `quorum-type`option to `auto` to allow writes to the file only
+if the percentage of active replicate bricks is more than 50% of the
+total number of bricks that constitute that replica.
+
+---------------------------------------------
+# gluster volume set VOLNAME quorum-type auto
+---------------------------------------------
+
+In this example, as there are only two bricks in the replica pair, the
+first brick must be up and running to allow writes.
+
+_____________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+*Important*
+
+Atleast n/2 bricks need to be up for the quorum to be met. If the number
+of bricks (`n`) in a replica set is an even number, it is mandatory that
+the `n/2` count must consist of the primary brick and it must be up and
+running. If `n` is an odd number, the `n/2` count can have any brick up
+and running, that is, the primary brick need not be up and running to
+allow writes.
+_____________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+
+[[Recovering_from_File_Split-brain]]
+== Recovering from File Split-brain
+
+You can recover from the data and meta-data split-brain using one of the
+following methods:
+
+* See <<chap-Managing_Red_Hat_Storage_Volumes-splibrain_mount_point>>
+for information on how to recover from data and meta-data split-brain
+from the mount point.
+* See <<chap-Managing_Red_Hat_Storage_Volumes-splibrain_cli>> for
+information on how to recover from data and meta-data split-brain
+using CLI
+
+For information on resolving `gfid/entry` split-brain, see 
+<<../appendices/chap-Manually_Resolving_Splitbrains.adoc#chap-Manually_Resolving_Split-brains,
+Manually Resolving Split-brains>>.
+
+[[chap-Managing_Red_Hat_Storage_Volumes-splibrain_mount_point]]
+=== Recovering File Split-brain from the Mount Point
+
+1.  You can use a set of `getfattr` and `setfattr` commands to detect
+the data and meta-data split-brain status of a file and resolve
+split-brain from the mount point.
++
+__________________________________________________________________________________________________________________________________
+*Important*
+
+This process for split-brain resolution from mount will not work on NFS
+mounts as it does not provide extended attributes support.
+__________________________________________________________________________________________________________________________________
++
+In this example, the `test-volume` volume has bricks `brick0`,
+`brick1`,` brick2` and `brick3`.
++
+---------------------------------
+# gluster volume info test-volume
+Volume Name: test-volume
+Type: Distributed-Replicate
+Status: Started
+Number of Bricks: 2 x 2 = 4
+Transport-type: tcp
+Bricks:
+Brick1: test-host:/rhgs/brick0
+Brick2: test-host:/rhgs/brick1
+Brick3: test-host:/rhgs/brick2
+Brick4: test-host:/rhgs/brick3
+---------------------------------
++
+Directory structure of the bricks is as follows:
++
+------------------
+# tree -R /test/b?
+/rhgs/brick0
+├── dir
+│   └── a
+└── file100
+
+/rhgs/brick1
+├── dir
+│   └── a
+└── file100
+
+/rhgs/brick2
+├── dir
+├── file1
+├── file2
+└── file99
+
+/rhgs/brick3
+├── dir
+├── file1
+├── file2
+└── file99
+------------------
++
+In the following output, some of the files in the volume are in
+split-brain.
++
+--------------------------------------------------
+# gluster volume heal test-volume info split-brain
+Brick test-host:/rhgs/brick0/
+/file100
+/dir
+Number of entries in split-brain: 2
+
+Brick test-host:/rhgs/brick1/
+/file100
+/dir
+Number of entries in split-brain: 2
+
+Brick test-host:/rhgs/brick2/
+/file99
+<gfid:5399a8d1-aee9-4653-bb7f-606df02b3696>
+Number of entries in split-brain: 2
+
+Brick test-host:/rhgs/brick3/
+<gfid:05c4b283-af58-48ed-999e-4d706c7b97d5>
+<gfid:5399a8d1-aee9-4653-bb7f-606df02b3696>
+Number of entries in split-brain: 2
+--------------------------------------------------
++
+To know data or meta-data split-brain status of a file:
++
+-------------------------------------------------------
+# getfattr -n replica.split-brain-status <path-to-file>
+-------------------------------------------------------
++
+The above command executed from mount provides information if a file is
+in data or meta-data split-brain. _This command is not applicable to
+gfid/entry split-brain._
++
+For example,
+* `file100` is in meta-data split-brain. Executing the above mentioned
+command for `file100` gives :
++
+-------------------------------------------------------------------------------------------------------------------
+# getfattr -n replica.split-brain-status file100
+# file: file100
+replica.split-brain-status="data-split-brain:no    metadata-split-brain:yes    Choices:test-client-0,test-client-1"
+-------------------------------------------------------------------------------------------------------------------
+* `file1` is in data split-brain.
++
+-------------------------------------------------------------------------------------------------------------------
+# getfattr -n replica.split-brain-status file1
+# file: file1
+replica.split-brain-status="data-split-brain:yes    metadata-split-brain:no    Choices:test-client-2,test-client-3"
+-------------------------------------------------------------------------------------------------------------------
+* `file99` is in both data and meta-data split-brain.
++
+--------------------------------------------------------------------------------------------------------------------
+# getfattr -n replica.split-brain-status file99
+# file: file99
+replica.split-brain-status="data-split-brain:yes    metadata-split-brain:yes    Choices:test-client-2,test-client-3"
+--------------------------------------------------------------------------------------------------------------------
+* `dir` is in `gfid/entry` split-brain but as mentioned earlier, the
+above command is does not display if the file is in `gfid/entry`
+split-brain. Hence, the command displays
+`The file is not under data or metadata split-brain`. For information on
+resolving gfid/entry split-brain, see
+<<../appendices/chap-Manually_Resolving_Splitbrains.adoc#chap-Manually_Resolving_Split-brains,
+Manually Resolving Split-brains>>.
++
+-------------------------------------------------------------------------------
+# getfattr -n replica.split-brain-status dir
+# file: dir
+replica.split-brain-status="The file is not under data or metadata split-brain"
+-------------------------------------------------------------------------------
+* `file2` is not in any kind of split-brain.
++
+-------------------------------------------------------------------------------
+# getfattr -n replica.split-brain-status file2
+# file: file2
+replica.split-brain-status="The file is not under data or metadata split-brain"
+-------------------------------------------------------------------------------
+2.  *Analyze the files in data and meta-data split-brain and resolve the
+issue.*
++
+When you perform operations like `cat`, `getfattr`, and more from the
+mount on files in split-brain, it throws an input/output error. For
+further analyzing such files, you can use `setfattr` command.
++
+--------------------------------------------------------------------
+# setfattr -n replica.split-brain-choice -v "choiceX" <path-to-file>
+--------------------------------------------------------------------
++
+Using this command, a particular brick can be chosen to access the file
+in split-brain.
++
+For example,
++
+`file1` is in data-split-brain and when you try to read from the file,
+it throws input/output error.
++
+------------------------------
+# cat file1
+cat: file1: Input/output error
+------------------------------
++
+Split-brain choices provided for file1 were `test-client-2` and
+`test-client-3`.
++
+Setting `test-client-2` as split-brain choice for file1 serves reads
+from `b2` for the file.
++
+---------------------------------------------------------------
+# setfattr -n replica.split-brain-choice -v test-client-2 file1
+---------------------------------------------------------------
++
+Now, you can perform operations on the file. For example, read
+operations on the file:
++
+-----------
+# cat file1
+xyz
+-----------
++
+Similarly, to inspect the file from other choice,
+`replica.split-brain-choice` is to be set to `test-client-3`.
++
+Trying to inspect the file from a wrong choice errors out. You can undo
+the split-brain-choice that has been set, the above mentioned `setfattr`
+command can be used with `none` as the value for extended attribute.
++
+For example,
++
+------------------------------------------------------
+# setfattr -n replica.split-brain-choice -v none file1
+------------------------------------------------------
++
+Now performing `cat` operation on the file will again result in
+input/output error, as before.
++
+------------------------------
+# cat file
+cat: file1: Input/output error
+------------------------------
++
+After you decide which brick to use as a source for resolving the
+split-brain, it must be set for the healing to be done.
++
+-------------------------------------------------------------------------------
+# setfattr -n replica.split-brain-heal-finalize -v <heal-choice> <path-to-file>
+-------------------------------------------------------------------------------
++
+Example
++
+----------------------------------------------------------------------
+# setfattr -n replica.split-brain-heal-finalize -v test-client-2 file1
+----------------------------------------------------------------------
++
+The above process can be used to resolve data and/or meta-data
+split-brain on all the files.
++
+*Setting the split-brain-choice on the file*
++
+After setting the split-brain-choice on the file, the file can be
+analyzed only for five minutes. If the duration of analyzing the file
+needs to be increased, use the following command and set the required
+time in ` timeout-in-minute` argument.
++
+-------------------------------------------------------------------------------------------
+# setfattr -n replica.split-brain-choice-timeout -v <timeout-in-minutes> <mount_point/file>
+-------------------------------------------------------------------------------------------
++
+This is a global timeout and is applicable to all files as long as the
+mount exists. The timeout need not be set each time a file needs to be
+inspected but for a new mount it will have to be set again for the first
+time. This option becomes invalid if the operations like add-brick or
+remove-brick are performed.
++
+________________________________________________________________________________________________________________________________________________________________________________________________
+*Note*
+
+If `fopen-keep-cache` FUSE mount option is disabled, then inode must be
+invalidated each time before selecting a new
+`replica.split-brain-choice` to inspect a file using the following
+command:
+
+--------------------------------------------------
+# setfattr -n inode-invalidate -v 0 <path-to-file>
+--------------------------------------------------
+________________________________________________________________________________________________________________________________________________________________________________________________
+
+[[chap-Managing_Red_Hat_Storage_Volumes-splibrain_cli]]
+=== Recovering File Split-brain from the gluster CLI
+
+You can resolve the split-brin from the gluster CLI by the following
+ways:
+
+* Use bigger-file as source
+* Use the file with latest mtime as source
+* Use one replica as source for a particular file
+* Use one replica as source for all files
+
+__________________________________________________________________________________________________________________________________
+*Note*
+
+The `entry/gfid` split-brain resolution is not supported using CLI. For
+information on resolving `gfid/entry` split-brain, see
+<<../appendices/chap-Manually_Resolving_Splitbrains.adoc#chap-Manually_Resolving_Split-brains,
+Manually Resolving Split-brains>>.
+__________________________________________________________________________________________________________________________________
+
+*Selecting the bigger-file as source.*
+
+This method is useful for per file healing and where you can decided
+that the file with bigger size is to be considered as source.
+
+1.  Run the following command to obtain the list of files that are in
+split-brain:
++
+----------------------------------------------
+# gluster volume heal VOLNAME info split-brain
+----------------------------------------------
++
+-------------------------------------------
+Brick <hostname:brickpath-b1>
+<gfid:aaca219f-0e25-4576-8689-3bfd93ca70c2>
+<gfid:39f301ae-4038-48c2-a889-7dac143e82dd>
+<gfid:c3c94de2-232d-4083-b534-5da17fc476ac>
+Number of entries in split-brain: 3
+
+Brick <hostname:brickpath-b2>
+/dir/file1
+/dir
+/file4
+Number of entries in split-brain: 3
+-------------------------------------------
++
+From the command output, identify the files that are in split-brain.
++
+You can find the differences in the file size and md5 checksums by
+performing a stat and md5 checksums on the file from the bricks. The
+following is the stat and md5 checksum output of a file:
++
+------------------------------------------------------------------------
+On brick b1:
+# stat b1/dir/file1
+  File: ‘b1/dir/file1’
+  Size: 17              Blocks: 16         IO Block: 4096   regular file
+Device: fd03h/64771d    Inode: 919362      Links: 2
+Access: (0644/-rw-r--r--)  Uid: (    0/    root)   Gid: (    0/    root)
+Access: 2015-03-06 13:55:40.149897333 +0530
+Modify: 2015-03-06 13:55:37.206880347 +0530
+Change: 2015-03-06 13:55:37.206880347 +0530
+ Birth: -
+
+# md5sum b1/dir/file1
+040751929ceabf77c3c0b3b662f341a8  b1/dir/file1
+
+On brick b2:
+# stat b2/dir/file1
+  File: ‘b2/dir/file1’
+  Size: 13              Blocks: 16         IO Block: 4096   regular file
+Device: fd03h/64771d    Inode: 919365      Links: 2
+Access: (0644/-rw-r--r--)  Uid: (    0/    root)   Gid: (    0/    root)
+Access: 2015-03-06 13:54:22.974451898 +0530
+Modify: 2015-03-06 13:52:22.910758923 +0530
+Change: 2015-03-06 13:52:22.910758923 +0530
+ Birth: -
+
+# md5sum b2/dir/file1
+cb11635a45d45668a403145059c2a0d5  b2/dir/file1
+------------------------------------------------------------------------
++
+You can notice the differences in the file size and md5 checksums.
+2.  Execute the following command along with the full file name as seen
+from the root of the volume (or) the gfid-string representation of the
+file, which is displayed in the heal info command's output.
++
+--------------------------------------------------------------
+# gluster volume heal <VOLNAME> split-brain bigger-file <FILE>
+--------------------------------------------------------------
++
+For example,
++
+--------------------------------------------------------------------
+# gluster volume heal test-volume split-brain bigger-file /dir/file1
+Healed /dir/file1.
+--------------------------------------------------------------------
+
+After the healing is complete, the md5sum and file size on both bricks
+must be same. The following is a sample output of the stat and md5
+checksums command after completion of healing the file.
+
+------------------------------------------------------------------------
+On brick b1:
+# stat b1/dir/file1
+  File: ‘b1/dir/file1’
+  Size: 17              Blocks: 16         IO Block: 4096   regular file
+Device: fd03h/64771d    Inode: 919362      Links: 2
+Access: (0644/-rw-r--r--)  Uid: (    0/    root)   Gid: (    0/    root)
+Access: 2015-03-06 14:17:27.752429505 +0530
+Modify: 2015-03-06 13:55:37.206880347 +0530
+Change: 2015-03-06 14:17:12.880343950 +0530
+ Birth: -
+
+# md5sum b1/dir/file1
+040751929ceabf77c3c0b3b662f341a8  b1/dir/file1
+
+On brick b2:
+# stat b2/dir/file1
+  File: ‘b2/dir/file1’
+  Size: 17              Blocks: 16         IO Block: 4096   regular file
+Device: fd03h/64771d    Inode: 919365      Links: 2
+Access: (0644/-rw-r--r--)  Uid: (    0/    root)   Gid: (    0/    root)
+Access: 2015-03-06 14:17:23.249403600 +0530
+Modify: 2015-03-06 13:55:37.206880000 +0530
+Change: 2015-03-06 14:17:12.881343955 +0530
+ Birth: -
+
+# md5sum b2/dir/file1
+040751929ceabf77c3c0b3b662f341a8  b2/dir/file1
+------------------------------------------------------------------------
+
+*Selecting the file with latest mtime as source.*
+
+This method is useful for per file healing and if you want the file with
+latest mtime has to be considered as source.
+
+1.  Run the following command to obtain the list of files that are in
+split-brain:
++
+----------------------------------------------
+# gluster volume heal VOLNAME info split-brain
+----------------------------------------------
++
+-------------------------------------------
+Brick <hostname:brickpath-b1>
+<gfid:aaca219f-0e25-4576-8689-3bfd93ca70c2>
+<gfid:39f301ae-4038-48c2-a889-7dac143e82dd>
+<gfid:c3c94de2-232d-4083-b534-5da17fc476ac>
+Number of entries in split-brain: 3
+
+Brick <hostname:brickpath-b2>
+/dir/file1
+/dir
+/file4
+Number of entries in split-brain: 3
+-------------------------------------------
++
+From the command output, identify the files that are in split-brain.
++
+You can find the differences in the file size and md5 checksums by
+performing a stat and md5 checksums on the file from the bricks. The
+following is the stat and md5 checksum output of a file:
++
+--------------------------------------------------------------------------
+On brick b1:
+
+ stat b1/file4
+  File: ‘b1/file4’
+    Size: 4               Blocks: 16         IO Block: 4096   regular file
+Device: fd03h/64771d    Inode: 919356      Links: 2
+Access: (0644/-rw-r--r--)  Uid: (    0/    root)   Gid: (    0/    root)
+Access: 2015-03-06 13:53:19.417085062 +0530
+Modify: 2015-03-06 13:53:19.426085114 +0530
+Change: 2015-03-06 13:53:19.426085114 +0530
+ Birth: -
+
+
+# md5sum b1/file4
+b6273b589df2dfdbd8fe35b1011e3183  b1/file4
+
+On brick b2:
+
+# stat b2/file4
+  File: ‘b2/file4’
+  Size: 4               Blocks: 16         IO Block: 4096   regular file
+Device: fd03h/64771d    Inode: 919358      Links: 2
+Access: (0644/-rw-r--r--)  Uid: (    0/    root)   Gid: (    0/    root)
+Access: 2015-03-06 13:52:35.761833096 +0530
+Modify: 2015-03-06 13:52:35.769833142 +0530
+Change: 2015-03-06 13:52:35.769833142 +0530
+ Birth: -
+
+
+# md5sum b2/file4
+0bee89b07a248e27c83fc3d5951213c1  b2/file4
+--------------------------------------------------------------------------
++
+You can notice the differences in the md5 checksums, and the modify
+time.
+2.  Execute the following command
++
+----------------------------------------------------------------
+# gluster volume heal <VOLNAME> split-brain latest-mtime <FILE> 
+----------------------------------------------------------------
++
+In this command, FILE can be either the full file name as seen from the
+root of the volume or the gfid-string representation of the file.
++
+For example,
++
+----------------------------------------------------------------
+#gluster volume heal test-volume split-brain latest-mtime /file4
+Healed /file4
+----------------------------------------------------------------
++
+After the healing is complete, the md5 checksum, file size, and modify
+time on both bricks must be same. The following is a sample output of
+the stat and md5 checksums command after completion of healing the file.
+You can notice that the file has been healed using the brick having the
+latest mtime (brick b1, in this example) as the source.
++
+-------------------------------------------------------------------------
+On brick b1:
+# stat b1/file4
+  File: ‘b1/file4’
+  Size: 4               Blocks: 16         IO Block: 4096   regular file
+Device: fd03h/64771d    Inode: 919356      Links: 2
+Access: (0644/-rw-r--r--)  Uid: (    0/    root)   Gid: (    0/    root)
+Access: 2015-03-06 14:23:38.944609863 +0530
+Modify: 2015-03-06 13:53:19.426085114 +0530
+Change: 2015-03-06 14:27:15.058927962 +0530
+ Birth: -
+
+# md5sum b1/file4
+b6273b589df2dfdbd8fe35b1011e3183  b1/file4
+
+On brick b2:
+# stat b2/file4
+ File: ‘b2/file4’
+   Size: 4               Blocks: 16         IO Block: 4096   regular file
+Device: fd03h/64771d    Inode: 919358      Links: 2
+Access: (0644/-rw-r--r--)  Uid: (    0/    root)   Gid: (    0/    root)
+Access: 2015-03-06 14:23:38.944609000 +0530
+Modify: 2015-03-06 13:53:19.426085000 +0530
+Change: 2015-03-06 14:27:15.059927968 +0530
+ Birth:
+
+# md5sum b2/file4
+b6273b589df2dfdbd8fe35b1011e3183  b2/file4
+-------------------------------------------------------------------------
+
+*Selecting one replica as source for a particular file.*
+
+This method is useful if you know which file is to be considered as
+source.
+
+1.  Run the following command to obtain the list of files that are in
+split-brain:
++
+----------------------------------------------
+# gluster volume heal VOLNAME info split-brain
+----------------------------------------------
++
+-------------------------------------------
+Brick <hostname:brickpath-b1>
+<gfid:aaca219f-0e25-4576-8689-3bfd93ca70c2>
+<gfid:39f301ae-4038-48c2-a889-7dac143e82dd>
+<gfid:c3c94de2-232d-4083-b534-5da17fc476ac>
+Number of entries in split-brain: 3
+
+Brick <hostname:brickpath-b2>
+/dir/file1
+/dir
+/file4
+Number of entries in split-brain: 3
+-------------------------------------------
++
+From the command output, identify the files that are in split-brain.
++
+You can find the differences in the file size and md5 checksums by
+performing a stat and md5 checksums on the file from the bricks. The
+following is the stat and md5 checksum output of a file:
++
+------------------------------------------------------------------------
+On brick b1:
+
+ stat b1/file4
+  File: ‘b1/file4’
+  Size: 4               Blocks: 16         IO Block: 4096   regular file
+Device: fd03h/64771d    Inode: 919356      Links: 2
+Access: (0644/-rw-r--r--)  Uid: (    0/    root)   Gid: (    0/    root)
+Access: 2015-03-06 13:53:19.417085062 +0530
+Modify: 2015-03-06 13:53:19.426085114 +0530
+Change: 2015-03-06 13:53:19.426085114 +0530
+ Birth: -
+
+# md5sum b1/file4
+b6273b589df2dfdbd8fe35b1011e3183  b1/file4
+
+On brick b2:
+
+# stat b2/file4
+  File: ‘b2/file4’
+  Size: 4               Blocks: 16         IO Block: 4096   regular file
+Device: fd03h/64771d    Inode: 919358      Links: 2
+Access: (0644/-rw-r--r--)  Uid: (    0/    root)   Gid: (    0/    root)
+Access: 2015-03-06 13:52:35.761833096 +0530
+Modify: 2015-03-06 13:52:35.769833142 +0530
+Change: 2015-03-06 13:52:35.769833142 +0530
+ Birth: -
+
+# md5sum b2/file4
+0bee89b07a248e27c83fc3d5951213c1  b2/file4
+------------------------------------------------------------------------
++
+You can notice the differences in the file size and md5 checksums.
+2.  Execute the following command
++
+-------------------------------------------------------------------------------------
+# gluster volume heal <VOLNAME> split-brain source-brick <HOSTNAME:BRICKNAME> <FILE> 
+-------------------------------------------------------------------------------------
++
+In this command, FILE present in <HOSTNAME:BRICKNAME> is taken as source
+for healing.
++
+For example,
++
+------------------------------------------------------------------------------
+# gluster volume heal test-volume split-brain source-brick test-host:b1 /file4
+Healed /file4
+------------------------------------------------------------------------------
++
+After the healing is complete, the md5 checksum and file size on both
+bricks must be same. The following is a sample output of the stat and
+md5 checksums command after completion of healing the file.
++
+------------------------------------------------------------------------
+On brick b1:
+# stat b1/file4
+  File: ‘b1/file4’
+  Size: 4               Blocks: 16         IO Block: 4096   regular file
+Device: fd03h/64771d    Inode: 919356      Links: 2
+Access: (0644/-rw-r--r--)  Uid: (    0/    root)   Gid: (    0/    root)
+Access: 2015-03-06 14:23:38.944609863 +0530
+Modify: 2015-03-06 13:53:19.426085114 +0530
+Change: 2015-03-06 14:27:15.058927962 +0530
+ Birth: -
+
+# md5sum b1/file4
+b6273b589df2dfdbd8fe35b1011e3183  b1/file4
+
+On brick b2:
+# stat b2/file4
+ File: ‘b2/file4’
+  Size: 4               Blocks: 16         IO Block: 4096   regular file
+Device: fd03h/64771d    Inode: 919358      Links: 2
+Access: (0644/-rw-r--r--)  Uid: (    0/    root)   Gid: (    0/    root)
+Access: 2015-03-06 14:23:38.944609000 +0530
+Modify: 2015-03-06 13:53:19.426085000 +0530
+Change: 2015-03-06 14:27:15.059927968 +0530
+ Birth: -
+
+# md5sum b2/file4
+b6273b589df2dfdbd8fe35b1011e3183  b2/file4
+------------------------------------------------------------------------
+
+*Selecting one replica as source for all files.*
+
+This method is useful if you know want to use a particular brick as a
+source for the split-brain files in that replica pair.
+
+1.  Run the following command to obtain the list of files that are in
+split-brain:
++
+----------------------------------------------
+# gluster volume heal VOLNAME info split-brain
+----------------------------------------------
++
+From the command output, identify the files that are in split-brain.
+2.  Execute the following command
++
+------------------------------------------------------------------------------
+# gluster volume heal <VOLNAME> split-brain source-brick <HOSTNAME:BRICKNAME> 
+------------------------------------------------------------------------------
++
+In this command, for all the files that are in split-brain in this
+replica, <HOSTNAME:BRICKNAME> is taken as source for healing.
++
+For example,
++
+-----------------------------------------------------------------------
+# gluster volume heal test-volume split-brain source-brick test-host:b1
+-----------------------------------------------------------------------
+
+[[Triggering_Self-Healing_on_Replicated_Volumes]]
+== Triggering Self-Healing on Replicated Volumes
+
+For replicated volumes, when a brick goes offline and comes back online,
+self-healing is required to re-sync all the replicas. There is a
+self-heal daemon which runs in the background, and automatically
+initiates self-healing every 10 minutes on any files which require
+healing.
+
+*Multithreaded Self-heal.*
+
+Self-heal daemon has the capability to handle multiple heals in parallel
+and is supported on Replicate and Distribute-replicate volumes. However,
+increasing the number of heals has impact on I/O performance so the
+following options have been provided. The `cluster.shd-max-threads`
+volume option controls the number of entries that can be self healed in
+parallel on each replica by self-heal daemon using. Using
+`cluster.shd-wait-qlength` volume option, you can configure the number
+of entries that must be kept in the queue for self-heal daemon threads
+to take up as soon as any of the threads are free to heal.
+
+For more information on `cluster.shd-max-threads` and
+`cluster.shd-wait-qlength` volume set options, see <<Configuring_Volume_Options>>.
+
+There are various commands that can be used to check the healing status
+of volumes and files, or to manually initiate healing:
+
+* To view the list of files that need healing:
++
+----------------------------------
+# gluster volume heal VOLNAME info
+----------------------------------
++
+For example, to view the list of files on test-volume that need healing:
++
+--------------------------------------
+# gluster volume heal test-volume info
+Brick server1:/gfs/test-volume_0
+Number of entries: 0
+
+Brick server2:/gfs/test-volume_1
+/95.txt
+/32.txt
+/66.txt
+/35.txt
+/18.txt
+/26.txt - Possibly undergoing heal
+/47.txt
+/55.txt
+/85.txt - Possibly undergoing heal
+...
+Number of entries: 101 
+--------------------------------------
+* To trigger self-healing only on the files which require healing:
++
+-----------------------------
+# gluster volume heal VOLNAME
+-----------------------------
++
+For example, to trigger self-healing on files which require healing on
+test-volume:
++
+--------------------------------------------------------
+# gluster volume heal test-volume
+Heal operation on volume test-volume has been successful
+--------------------------------------------------------
+* To trigger self-healing on all the files on a volume:
++
+----------------------------------
+# gluster volume heal VOLNAME full
+----------------------------------
++
+For example, to trigger self-heal on all the files on test-volume:
++
+--------------------------------------------------------
+# gluster volume heal test-volume full
+Heal operation on volume test-volume has been successful
+--------------------------------------------------------
+* To view the list of files on a volume that are in a split-brain state:
++
+----------------------------------------------
+# gluster volume heal VOLNAME info split-brain
+----------------------------------------------
++
+For example, to view the list of files on test-volume that are in a
+split-brain state:
++
+--------------------------------------------------
+# gluster volume heal test-volume info split-brain
+Brick server1:/gfs/test-volume_2
+Number of entries: 12
+at                   path on brick
+----------------------------------
+2012-06-13 04:02:05  /dir/file.83
+2012-06-13 04:02:05  /dir/file.28
+2012-06-13 04:02:05  /dir/file.69
+Brick server2:/gfs/test-volume_2
+Number of entries: 12
+at                   path on brick
+----------------------------------
+2012-06-13 04:02:05  /dir/file.83
+2012-06-13 04:02:05  /dir/file.28
+2012-06-13 04:02:05  /dir/file.69
+...
+--------------------------------------------------
+
+[[Non_Uniform_File_Allocation_NUFA]]
+= Non Uniform File Allocation (NUFA)
+
+{% if book.productTitle != "GlusterFS" %}
+__________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+*Important*
+
+Non Uniform File Allocation (NUFA) is a technology preview feature.
+Technology preview features are not fully supported under {{ book.company }}
+subscription level agreements (SLAs), may not be functionally complete,
+and are not intended for production use. However, these features provide
+early access to upcoming product innovations, enabling customers to test
+functionality and provide feedback during the development process. As
+{{ book.company }} considers making future iterations of technology preview
+features generally available, we will provide commercially reasonable
+support to resolve any reported issues that customers experience when
+using these features. {{ book.productTitle }} currently does not support
+NFSv4 delegations, Multi-head NFS and High Availability. These will be
+added in the upcoming releases of {{ book.productTitle }} nfs-ganesha.
+It is not a feature recommended for production deployment in its current
+form. However, {{ book.productTitle }} volumes can be exported via
+nfs-ganesha for consumption by both NFSv3 and NFSv4 clients.
+__________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+
+{% endif %}
+
+When a client on a server creates files, the files are allocated to a
+brick in the volume based on the file name. This allocation may not be
+ideal, as there is higher latency and unnecessary network traffic for
+read/write operations to a non-local brick or export directory. NUFA
+ensures that the files are created in the local export directory of the
+server, and as a result, reduces latency and conserves bandwidth for
+that server accessing that file. This can also be useful for
+applications running on mount points on the storage server.
+
+If the local brick runs out of space or reaches the minimum disk free
+limit, instead of allocating files to the local brick, NUFA distributes
+files to other bricks in the same volume if there is space available on
+those bricks.
+
+NUFA should be enabled before creating any data in the volume. To enable
+NUFA, execute `gluster volume set VOLNAMEcluster.nufa enableon`.
+
+__________________________________________________________________________________________________
+*Important*
+
+NUFA is supported under the following conditions:
+
+* Volumes with only with one brick per server.
+* For use with a FUSE client. NUFA is not supported with NFS or SMB.
+* A client that is mounting a NUFA-enabled volume must be present within
+the trusted storage pool.
+__________________________________________________________________________________________________

@@ -1,0 +1,444 @@
+[[chap-Administering_the_Hortonworks_Data_Platform_on_Red_Hat_Storage]]
+= Administering the Hortonworks Data Platform on {{ book.productTitle }}
+
+{% if book.productTitle != "GlusterFS" %}
+______________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+*Warning*
+
+Support for Hortonworks Data Platform (HDP) on {{ book.productTitle }}
+integrated using the Hadoop Plug-In is deprecated as of {{ book.productTitle }}
+3.1 Update 2, and is unlikely to be supported in the next major
+release. {{ book.company }} discourages further use of this plug-in for deployments
+where {{ book.productTitle }} is directly used for holding analytics
+data for running in-place analytics. However, {{ book.productTitle }}
+can be used as a general purpose repository for holding analytics data
+and as a companion store where the bulk of the data is stored and then
+moved to Hadoop clusters for analysis when necessary.
+______________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+{% endif %}
+
+{{ book.productTitle }} provides filesystem compatibility for Apache
+Hadoop and uses the standard file system APIs available in Hadoop to
+provide a new storage option for Hadoop deployments. Existing Hadoop
+Ecosystem applications can use {{ book.productTitle }} seamlessly.
+
+_______________________________________________________________________________
+*Important*
+
+The following features of {{ book.productTitle }} is not supported with
+Hadoop:
+
+* Dispersed Volumes and Distributed Dispersed Volume
+* Red Hat Enterprise Linux 7
+_______________________________________________________________________________
+
+*Advantages.*
+
+The following are the advantages of Hadoop Compatible Storage with
+{{ book.productTitle }}:
+
+* Provides file-based access to {{ book.productTitle }} volumes by
+Hadoop while simultaneously supporting POSIX features for the volumes
+such as NFS Mounts, Fuse Mounts, Snapshotting and Geo-Replication.
+* Eliminates the need for a centralized metadata server (HDFS Primary
+and Redundant Namenodes) by replacing HDFS with {{ book.productTitle }}.
+* Provides compatibility with MapReduce and Hadoop Ecosystem
+applications with no code rewrite required.
+* Provides a fault tolerant file system.
+* Allows co-location of compute and data and the ability to run Hadoop
+jobs across multiple namespaces using multiple {{ book.productTitle }}
+volumes.
+
+[[sect-Deployment_Scenarios]]
+= Deployment Scenarios
+
+You must ensure to meet the prerequisites by establishing the basic
+infrastructure required to enable Hadoop Distributions to run on
+{{ book.productTitle }}. For information on prerequisites and installation
+procedure, see Deploying the Hortonworks Data Platform on {{ book.productTitle }}
+chapter in {{ book.productTitle }} {{ book.productVersion }} Installation
+Guide.
+
+The supported volume configuration for Hadoop is Distributed Replicated
+volume with replica count 2 or 3.
+
+The following table provides the overview of the components of the
+integrated environment.
+
+.Component Overview
+[cols=",",options="header",]
+|=======================================================================
+|Component Overview |Component Description
+|Ambari |Management Console for the Hortonworks Data Platform
+
+|{{ book.productTitle }} Console |(Optional) Management Console for
+{{ book.productTitle }}
+
+|YARN Resource Manager |Scheduler for the YARN Cluster
+
+|YARN Node Manager |Worker for the YARN Cluster on a specific server
+
+|Job History Server |This logs the history of submitted YARN Jobs
+
+|glusterd |This is the {{ book.productTitle }} process on a given server
+|=======================================================================
+
+[[Red_Hat_Storage_Trusted_Storage_Pool_with_Two_Additional_Servers]]
+== {{ book.productTitle }} Trusted Storage Pool with Two Additional
+Servers
+
+The recommended approach to deploy the Hortonworks Data Platform on
+{{ book.productTitle }} is to add two additional servers to your trusted
+storage pool. One server acts as the Management Server hosting the
+management components such as Hortonworks Ambari and {{ book.productTitle }}
+Console (optional). The other server acts as the YARN Master
+Server and hosts the YARN Resource Manager and Job History Server
+components. This design ensures that the YARN Master processes do not
+compete for resources with the YARN NodeManager processes. Furthermore,
+it also allows the Management server to be multi-homed on both the
+Hadoop Network and User Network, which is useful to provide users with
+limited visibility into the cluster.
+
+image:images/Gluster_diagrams.1.png[ ]
+
+[[Red_Hat_Storage_Trusted_Storage_Pool_with_One_Additional_Server]]
+== {{ book.productTitle }} Trusted Storage Pool with One Additional
+Server
+
+If two servers are not available, you can install the YARN Master Server
+and the Management Server on a single server. This is also an option if
+you have a server with abundant CPU and Memory available. It is
+recommended that the utilization is carefully monitored on the server to
+ensure that sufficient resources are available to all the processes. If
+resources are being over-utilized, it is recommended that you move to
+the deployment topology for a large cluster as explained in the previous
+section. Ambari supports the ability to relocate the YARN Resource
+Manager to another server after it is deployed. It is also possible to
+move Ambari to another server after it is installed.
+
+image:images/Gluster_diagrams.2.png[ ]
+
+[[Red_Hat_Storage_Trusted_Storage_Pool_only]]
+== {{ book.productTitle }} Trusted Storage Pool only
+
+If no additional servers are available, one can condense the processes
+on the YARN Master Server and the Management Server on a server within
+the trusted storage pool. This option is recommended only in a
+evaluation environment with workloads that do not utilize the servers
+heavily. It is recommended that the utilization is carefully monitored
+on the server to ensure that sufficient resources are available for all
+the processes. If the resources start are over-utilized, it is
+recommended that you move to the deployment topology detailed in
+<<Red_Hat_Storage_Trusted_Storage_Pool_with_Two_Additional_Servers>>.
+Ambari supports the ability to relocate the YARN Resource Manager to
+another server after it is deployed. It is also possible to move Ambari
+to another server after it is installed.
+
+image:images/Gluster_diagram_AdminGuide-23.png[
+]
+
+[[Deploying_Hadoop_on_an_existing_Red_Hat_Storage_Trusted_Storage_Pool]]
+== Deploying Hadoop on an existing {{ book.productTitle }} Trusted
+Storage Pool
+
+If you have an existing {{ book.productTitle }} Trusted Storage Pool
+then you need to procure two additional servers for the YARN Master and
+Ambari Management Server as depicted in the deployment topology detailed
+in <<Red_Hat_Storage_Trusted_Storage_Pool_with_Two_Additional_Servers>>.
+If you have no existing volumes within the trusted storage pool
+you need to follow the instructions in the installation guide to create
+and enable those volumes for Hadoop. If you have existing volumes you
+need to follow the instructions to enable them for Hadoop.
+
+The supported volume configuration for Hadoop is Distributed Replicated
+volume with replica count 2 or 3.
+
+[[Deploying_Hadoop_on_a_New_Red_Hat_Storage_Trusted_Storage_Pool]]
+== Deploying Hadoop on a New {{ book.productTitle }} Trusted Storage
+Pool
+
+If you do not have an existing {{ book.productTitle }} Trusted Storage
+Pool, you must procure all the servers listed in the deployment topology
+detailed in <<Red_Hat_Storage_Trusted_Storage_Pool_with_Two_Additional_Servers>>.
+You must then follow the installation instructions listed
+in the {{ book.productTitle }} 3.1 Installation Guide so that the
+`setup_cluster.sh` script can build the storage pool for you. The rest
+of the installation instructions will articulate how to create and
+enable volumes for use with Hadoop.
+
+The supported volume configuration for Hadoop is Distributed Replicated
+volume with replica count 2 or 3.
+
+[[Administration_of_HDP_Services_with_Ambari_on_Red_Hat_Storage]]
+= Administration of HDP Services with Ambari on {{ book.productTitle }}
+
+Hadoop is a large scale distributed data storage and processing
+infrastructure using clusters of commodity hosts networked together.
+Monitoring and managing such complex distributed systems is a tough
+task. To help you deal with the complexity, Apache Ambari collects a
+wide range of information from the cluster's nodes and services and
+presents them to you in an easy-to-read format. It uses a centralized
+web interface called the Ambari Web. Ambari Web displays information
+such as service-specific summaries, graphs, and alerts. It also allows
+you to perform basic management tasks such as starting and stopping
+services, adding hosts to your cluster, and updating service
+configurations.
+
+For more information on Administering Hadoop using Apache Ambari, see
+Administering Hadoop 2 with Ambari Web guide on Hortonworks Data
+Platform website.
+
+[[Managing_Users_of_the_System]]
+= Managing Users of the System
+
+By default, Ambari uses an internal database as the user store for
+authentication and authorization. To add LDAP or Active Directory (AD)
+or Kerberos external authentication in addition for Ambari Web, you must
+collect the required information and run a special setup command. Ambari
+Server must not be running when you execute this command.
+
+For information on setting up LDAP or Active Directory authentication,
+see section 1. Optional: Set Up LDAP or Active Directory Authentication
+of chapter 2. Advanced Security Options for Ambari in Ambari Security
+Guide on Hortonworks Data Platform website.
+
+For information on Setting Up Kerberos authentication, see chapter 1.
+Configuring Kerberos Authentication in Ambari Security Guide on
+Hortonworks Data Platform website.
+
+For information on adding and removing users from Hadoop group, see
+section 7.3. Adding and Removing Users in {{ book.productTitle }} 3.1
+Installation Guide.
+
+[[Running_Hadoop_Jobs_Across_Multiple_Red_Hat_Storage_Volumes]]
+= Running Hadoop Jobs Across Multiple {{ book.productTitle }} Volumes
+
+If you are already running Hadoop Jobs on a volume and wish to enable
+Hadoop on existing additional {{ book.productTitle }} Volumes, then you
+must follow the steps in the Enabling Existing Volumes for use with
+Hadoop section in Deploying the Hortonworks Data Platform on {{ book.productTitle }}
+chapter, in the {{ book.productTitle }} {{ book.productVersion }} Installation
+Guide . If you do not have an additional volume and wish to add one,
+then you must first complete the procedures mentioned in the Creating
+volumes for use with Hadoop section and then the procedures mentioned in
+Enabling Existing Volumes for use with Hadoop section. This will
+configure the additional volume for use with Hadoop.
+
+*Specifying volume specific paths when running Hadoop Jobs.*
+
+When you specify paths in a Hadoop Job, the full URI of the path is
+required. For example, if you have a volume named `VolumeOne` and that
+must pass in a file called `myinput.txt` in a directory named `input`,
+then you would specify it as `glusterfs://VolumeOne/input/myinput.txt`,
+the same formatting goes for the output. The example below shows data
+read from a path on VolumeOne and written to a path on VolumeTwo.
+
+`# bin/hadoop jar /opt/HadoopJobs.jar ProcessLogs glusterfs://VolumeOne/input/myinput.txt glusterfs://VolumeTwo/output/`
+
+____________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+*Note*
+
+The very first {{ book.productTitle }} volume that is configured for
+using with Hadoop is the Default Volume. This is usually the volume name
+you specified when you went through the Installation Guide. The Default
+Volume is the only volume that does not require a full URI to be
+specified and is allowed to use a relative path. Thus, assuming your
+default volume is called HadoopVol, both
+`glusterfs://HadoopVol/input/myinput.txt` and `/input/myinput.txt` are
+processed the same when providing input to a Hadoop Job or using the
+Hadoop CLI.
+____________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+
+[[sect-Scaling_Up_and_Scaling_Down]]
+= Scaling Up and Scaling Down
+
+The supported volume configuration for Hadoop is Distributed Replicated
+volume with replica count 2 or 3. Hence, you must add or remove servers
+from the trusted storage pool in multiples of replica count. {{ book.company }}
+recommends you to not have more than one brick that belongs to the same
+volume, on the same server. Adding additional servers to a {{ book.productTitle }}
+volume increases both the storage and the compute
+capacity for that trusted storage pool as the bricks on those servers
+add to the storage capacity of the volume, and the CPUs increase the
+amount of Hadoop Tasks that the Hadoop Cluster on the volume can run.
+
+[[Scaling_Up]]
+== Scaling Up
+
+The following is the procedure to add 2 new servers to an existing
+Hadoop on {{ book.productTitle }} trusted storage pool.
+
+1.  Ensure that the new servers meet all the prerequisites and have the
+appropriate channels and components installed. For information on
+prerequisites, see section Prerequisites in the chapter Deploying the
+Hortonworks Data Platform on {{ book.productTitle }} of {{ book.productTitle }}
+{{ book.productVersion }}Installation Guide. For information on adding servers to the
+trusted storage pool, see <<../architecture/chap-Trusted_Storage_Pools.adoc#chap-Trusted_Storage_Pools,
+Trusted Storage Pools>>.
+2.  In the Ambari Console, click Stop All in the Services navigation
+panel. You must wait until all the services are completely stopped.
+3.  Open the terminal window of the server designated to be the Ambari
+Management Server and navigate to the `/usr/share/rhs-hadoop-install/`
+directory.
+4.  Run the following command by replacing the _examples_ with the
+necessary values. This command below assumes the LVM partitions on the
+server are `/dev/vg1/lv1` and you wish them to be mounted as
+`/rhgs/brick1`:
++
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# ./setup_cluster.sh --yarn-master <the-existing-yarn-master-node>  [--hadoop-mgmt-node <the-existing-mgmt-node>] new-node1.hdp:/rhgs/brick1:/dev/vg1/lv1 new-node2.hdp
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+5.  Open the terminal of any {{ book.productTitle }} server in the
+trusted storage pool and run the following command. This command assumes
+that you want to add the servers to a volume called `HadoopVol`:
++
+--------------------------------------------------------------------------------------------
+# gluster volume add-brick HadoopVol replica 2 new-node1:/rhgs/brick1 new-node2:/rhgs/brick1
+--------------------------------------------------------------------------------------------
++
+For more information on expanding volumes, see
+<<../cluster/chap-Managing_Gluster_Volumes.adoc#Expanding_Volumes, Expanding Volumes>>.
+6.  Open the terminal of any {{ book.productTitle }} Server in the
+cluster and rebalance the volume using the following command:
++
+------------------------------------------
+# gluster volume rebalance HadoopVol start
+------------------------------------------
++
+Rebalancing the volume will distribute the data on the volume among the
+servers. To view the status of the rebalancing operation, run
+`# gluster volume rebalance HadoopVol status` command. The rebalance
+status will be shown as `completed` when the rebalance is complete. For
+more information on rebalancing a volume, see
+<<../cluster/chap-Managing_Gluster_Volumes.adoc#sect-Rebalancing_Volumes,
+Rebalancing Volumes>>.
+7.  Open the terminal of both of the new storage nodes and navigate to
+the `/usr/share/rhs-hadoop-install/` directory and run the command given
+below:
++
+-------------------------------
+# ./setup_container_executor.sh
+-------------------------------
+8.  Access the Ambari Management Interface via the browser
+(http://ambari-server-hostname:8080) and add the new nodes by selecting
+the HOSTS tab and selecting add new host. Select the services you wish
+to install on the new host and deploy the service to the hosts.
+9.  Follow the instructions in Configuring the Linux Container Executor
+section in the {{ book.productTitle }} 3.1 Installation Guide.
+
+[[Scaling_Down]]
+== Scaling Down
+
+If you remove servers from a {{ book.productTitle }} trusted storage
+pool it is recommended that you rebalance the data in the trusted
+storage pool. The following is the process to remove 2 servers from an
+existing Hadoop on {{ book.productTitle }} Cluster:
+
+1.  In the Ambari Console, click Stop All in the Services navigation
+panel. You must wait until all the services are completely stopped.
+2.  Open the terminal of any {{ book.productTitle }} server in the
+trusted storage pool and run the following command. This procedure
+assumes that you want to remove 2 servers, that is `old-node1` and
+`old-node2` from a volume called `HadoopVol`:
++
+-----------------------------------------------------------------------------------------------------------
+# gluster volume remove-brick HadoopVol [replica count] old-node1:/rhgs/brick2 old-node2:/rhgs/brick2 start
+-----------------------------------------------------------------------------------------------------------
++
+To view the status of the remove brick operation, run
+`# gluster volume remove-brick HadoopVol old-node1:/rhgs/brick2 old-node2:/rhgs/brick2 status`
+command.
+3.  When the data migration shown in the status command is `Complete`,
+run the following command to commit the brick removal:
++
+--------------------------------------------------------------------------------------------
+# gluster volume remove-brick HadoopVol old-node1:/rhgs/brick2 old-node2:/rhgs/brick2 commit
+--------------------------------------------------------------------------------------------
++
+After the bricks removal, you can check the volume information using
+`# gluster volume info HadoopVol` command. For detailed information on
+removing volumes, see <<../cluster/chap-Managing_Gluster_Volumes.adoc#sect-Shrinking_Volumes,
+Shrinking Volumes>>
+4.  Open the terminal of any {{ book.productTitle }} server in the
+trusted storage pool and run the following command to detach the removed
+server:
++
+--------------------------------
+# gluster peer detach old-node1 
+# gluster peer detach old-node2
+--------------------------------
+5.  Open the terminal of any {{ book.productTitle }} Server in the
+cluster and rebalance the volume using the following command:
++
+------------------------------------------
+# gluster volume rebalance HadoopVol start
+------------------------------------------
++
+Rebalancing the volume will distribute the data on the volume among the
+servers. To view the status of the rebalancing operation, run
+`# gluster volume rebalance HadoopVol status` command. The rebalance
+status will be shown as `completed` when the rebalance is complete. For
+more information on rebalancing a volume, see
+<<../cluster/chap-Managing_Gluster_Volumes.adoc#sect-Rebalancing_Volumes,
+Rebalancing Volumes>>.
+6.  Remove the nodes from Ambari by accessing the Ambari Management
+Interface via the browser (http://ambari-server-hostname:8080) and
+selecting the HOSTS tab. Click on the host(node) that you would like to
+delete and select Host Actions on the right hand side. Select Delete
+Host from the drop down.
+
+[[Creating_a_Snapshot_of_Hadoop_enabled_Red_Hat_Storage_Volumes]]
+= Creating a Snapshot of Hadoop enabled {{ book.productTitle }} Volumes
+
+The {{ book.productTitle }} Snapshot feature enables you to create
+point-in-time copies of {{ book.productTitle }} volumes, which you can
+use to protect data and helps in disaster recovery solution. You can
+directly access Snapshot copies which are read-only to recover from
+accidental deletion, corruption, or modification of their data.
+
+For information on prerequisites, creating, and restoring snapshots, see
+<<../features/chap-Managing_Snapshots.adoc#chap-Managing_Snapshots, Managing Snapshots>>.
+However, you must ensure to stop all the Hadoop Services in Ambari
+before creating snapshot and before restoring a snapshot. You must also
+start the Hadoop services again after restoring the snapshot.
+
+You can create snapshots of Hadoop enabled {{ book.productTitle }}
+volumes and the following scenarios are supported:
+
+*Scenario 1: Existing {{ book.productTitle }} trusted storage pool.*
+
+You have an existing {{ book.productTitle }} volume and you created a
+snapshot of that volume but you are not yet using the volume with
+Hadoop. You then add more data to the volume and decide later that you
+want to rollback the volume's contents. You rollback the contents by
+restoring the snapshot. The volume can then be enabled later to support
+Hadoop workloads the same way that a newly created volume does.
+
+*Scenario 2: Hadoop enabled {{ book.productTitle }} volume.*
+
+You are running Hadoop workloads on the volume prior to the snapshot
+being created. You then create a snapshot of the volume and later
+restore from the snapshot. Hadoop continues to work on the volume once
+it is restored.
+
+*Scenario 3: Restoring Subset of Files.*
+
+In this scenario, instead of restoring the full volume, only a subset of
+the files are restored that may have been lost or corrupted. This means
+that certain files that existed when the volume was originally snapped
+have subsequently been deleted. You want to restore just those files
+back from the Snapshot and add them to the current volume state. This
+means that the files will be copied from the snapshot into the volume.
+Once the copy has occurred, Hadoop workloads will run on the volume as
+normal.
+
+[[Creating_Quotas_on_Hadoop_enabled_Red_Hat_Storage_Volume]]
+= Creating Quotas on Hadoop enabled {{ book.productTitle }} Volume
+
+You must not configure quota on any of the Hadoop System directories as
+Hadoop uses those directories for writing temporary and intermediate
+data. If the quota is exceeded, it will break Hadoop and prevent all
+users from running Jobs. Rather, you must set quotas on specific user
+directories so that they can limit the amount of storage capacity is
+available to a user without affecting the other users of the Hadoop
+Cluster.

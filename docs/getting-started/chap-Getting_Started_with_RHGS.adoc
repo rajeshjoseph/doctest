@@ -1,0 +1,158 @@
+[[chap-Getting_Started]]
+= Getting Started with {{ book.productTitle }} Server
+
+This chapter provides information on the ports that must be open for
+{{ book.productTitle }} Server and the `glusterd` service.
+
+The {{ book.productTitle }} glusterFS daemon `glusterd` enables dynamic
+configuration changes to {{ book.productTitle }} volumes, without
+needing to restart servers or remount storage volumes on clients.
+
+[[chap-Getting_Started-Port_Information]]
+= Port Information
+
+{{ book.productTitle }} Server uses the listed ports. You must ensure
+that the firewall settings do not prevent access to these ports.
+
+Firewall configuration tools differ between Red Hat Entperise Linux 6
+and Red Hat Enterprise Linux 7.
+
+For Red Hat Enterprise Linux 6, use the `iptables` command to open a
+port:
+
+-----------------------------------------------------------------------------
+# iptables -A INPUT -m state --state NEW -m tcp -p tcp --dport 5667 -j ACCEPT
+# service iptables save
+-----------------------------------------------------------------------------
+
+For Red Hat Enterprise Linux 7, if default ports are in use, it is
+usually simpler to add a service rather than open a port:
+
+-------------------------------------------------------------------
+# firewall-cmd --zone=zone_name --add-service=glusterfs 
+# firewall-cmd --zone=zone_name --add-service=glusterfs --permanent
+-------------------------------------------------------------------
+
+However, if the default ports are already in use, you can open a
+specific port with the following command:
+
+------------------------------------------------------------
+# firewall-cmd --zone=public --add-port=5667/tcp
+# firewall-cmd --zone=public --add-port=5667/tcp --permanent
+------------------------------------------------------------
+
+.TCP Port Numbers
+[cols=",",options="header",]
+|=======================================================================
+|Port Number |Usage
+|22 |For sshd used by geo-replication.
+
+|111 |For rpc port mapper.
+
+|139 |For netbios service.
+
+|445 |For CIFS protocol.
+
+|965 |For NFS's Lock Manager (NLM).
+
+|2049 |For glusterFS's NFS exports (nfsd process).
+
+|24007 |For glusterd (for management).
+
+|24009 - 24108 |For client communication with {{ book.productTitle }}
+2.0.
+
+|38465 |For NFS mount protocol.
+
+|38466 |For NFS mount protocol.
+
+|38468 |For NFS's Lock Manager (NLM).
+
+|38469 |For NFS's ACL support.
+
+|39543 |For oVirt ({{ book.productTitle }} Console).
+
+|49152 - 49251 |For client communication with {{ book.productTitle }}
+2.1 and for brick processes depending on the availability of the ports.
+The total number of ports required to be open depends on the total
+number of bricks exported on the machine.
+
+|54321 |For VDSM ({{ book.productTitle }} Console).
+
+|55863 |For oVirt ({{ book.productTitle }} Console).
+|=======================================================================
+
+.TCP Port Numbers used for Object Storage (Swift)
+[cols=",",options="header",]
+|===========================
+|Port Number |Usage
+|443 |For HTTPS request.
+|6010 |For Object Server.
+|6011 |For Container Server.
+|6012 |For Account Server.
+|8080 |For Proxy Server.
+|===========================
+
+.TCP Port Numbers for Nagios Monitoring
+[cols=",",options="header",]
+|=======================================================================
+|Port Number |Usage
+|80 |For HTTP protocol (required only if Nagios server is running on a
+{{ book.productTitle }} node).
+
+|443 |For HTTPS protocol (required only for Nagios server).
+
+|5667 |For NSCA service (required only if Nagios server is running on a
+{{ book.productTitle }} node).
+
+|5666 |For NRPE service (required in all {{ book.productTitle }} nodes).
+|=======================================================================
+
+.UDP Port Numbers
+[cols=",",options="header",]
+|==================================
+|Port Number |Usage
+|111 |For RPC Bind.
+|963 |For NFS's Lock Manager (NLM).
+|==================================
+
+[[Starting_and_Stopping_the_glusterd_service]]
+= Starting and Stopping the glusterd service
+
+Using the `glusterd` command line, logical storage volumes can be
+decoupled from physical hardware. Decoupling allows storage volumes to
+be grown, resized, and shrunk, without application or server downtime.
+
+Regardless of changes made to the underlying hardware, the trusted
+storage pool is always available while changes to the underlying
+hardware are made. As storage is added to the trusted storage pool,
+volumes are rebalanced across the pool to accommodate the added storage
+capacity.
+
+The `glusterd` service is started automatically on all servers in the
+trusted storage pool. The service can also be manually started and
+stopped as required.
+
+* Run the following command to start glusterd manually.
++
+------------------------
+# service glusterd start
+------------------------
+* Run the following command to stop glusterd manually.
++
+-----------------------
+# service glusterd stop
+-----------------------
+
+When a {{ book.productTitle }} server node hosting 256 snapshots of one
+or more volumes is upgraded to {{ book.productTitle }} 3.1, the cluster
+management commands may become unresponsive. This is because, glusterd
+becomes unresponsive when it tries to start all the brick processes
+concurrently for all the bricks and corresponding snapshots hosted on
+the node. This issue can be observed even without snapshots, if there
+are an equal number of brick processes hosted on a single node.
+
+If the issue was observed in a setup with large number of snapshots
+taken on one or more volumes, deactivate the snapshots before performing
+an upgrade. The snapshots can be activated after the upgrade is
+complete.

@@ -1,0 +1,15 @@
+= Summary
+
+* link:README.adoc[Gluster Features]
+** link:chap-Network_Encryption.adoc[Network Encryption]
+** link:chap-Managing_Geo-replication.adoc[Managing Geo-replication]
+** link:chap-Managing_Directory_Quotas.adoc[Managing Directory Quotas]
+** link:chap-Managing_Sharding.adoc[Managing Sharding]
+** link:chap-Managing_Snapshots.adoc[Managing Snapshots]
+** link:chap-Detecting_Data_Corruption_with_Bitrots.adoc[Detecting Data Corruption with BitRot]
+** link:chap-Managing_Tiering.adoc[Managing Tiering]
+{% if book.productTitle == "GlusterFS" %}
+** link:Export-Netgroup-Authentication.adoc[Export and Netgroup Authentication]
+** link:arbiter-volume-and-quorum.adoc[Arbiter Volume and Quorum]
+** link:trash.adoc[Trash for GlusterFS]
+{% endif %}

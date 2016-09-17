@@ -1,0 +1,93 @@
+[[chap-Nagios_Configuration_Files]]
+= Nagios Configuration Files
+
+Auto-discovery creates folders and files as part of configuring
+{{ book.productTitle }} nodes for monitoring. All nodes in the trusted storage
+pool are configured as hosts in Nagios. The Host and Hostgroup
+configurations are also generated for trusted storage pool with cluster
+name. Ensure that the following files and folders are created with the
+details described to verify the Nagios configurations generated using
+Auto-discovery.
+
+* In `/etc/nagios/gluster/` directory, a new directory `Cluster-Name` is
+created with the name provided as `Cluster-Name` while executing
+`configure-gluster-nagios` command for auto-discovery. All
+configurations created by auto-discovery for the cluster are added in
+this folder.
+* In `/etc/nagios/gluster/Cluster-Name` directory, a configuration file,
+`Cluster-Name.cfg` is generated. This file has the host and hostgroup
+configurations for the cluster. This also contains service configuration
+for all the cluster/volume level services.
++
+The following Nagios object definitions are generated in
+`Cluster-Name.cfg` file:
+** A hostgroup configuration with `hostgroup_name` as cluster name.
+** A host configuration with `host_name` as cluster name.
+** The following service configurations are generated for cluster
+monitoring:
+*** A _Cluster - Quorum_ service to monitor the cluster quorum.
+*** A _Cluster Utilization_ service to monitor overall utilization of
+volumes in the cluster. This is created only if there is any volume
+present in the cluster.
+*** A _Cluster Auto Config_ service to periodically synchronize the
+configurations in Nagios with {{ book.productTitle }} trusted storage
+pool.
+** The following service configurations are generated for each volume in
+the trusted storage pool:
+*** A Volume Status- _Volume-Name_ service to monitor the status of the
+volume.
+*** A Volume Utilization - _Volume-Name_ service to monitor the
+utilization statistics of the volume.
+*** A Volume Quota - _Volume-Name_ service to monitor the Quota status
+of the volume, if Quota is enabled for the volume.
+*** A Volume Self-Heal - _Volume-Name_ service to monitor the Self-Heal
+status of the volume, if the volume is of type replicate or
+distributed-replicate.
+*** A Volume Geo-Replication - _Volume-Name_ service to monitor the Geo
+Replication status of the volume, if Geo-replication is configured for
+the volume.
+* In `/etc/nagios/gluster/Cluster-Name` directory, a configuration file
+with name `Host-Name.cfg` is generated for each node in the cluster.
+This file has the host configuration for the node and service
+configuration for bricks from the particular node. The following Nagios
+object definitions are generated in `Host-name.cfg`.
+** A host configuration which has Cluster-Name in the `hostgroups`
+field.
+** The following services are created for each brick in the node:
+*** A _Brick Utilization - brick-path_ service to monitor the
+utilization of the brick.
+*** A _Brick - brick-path_ service to monitor the brick status.
+
+.Nagios Configuration Files
+[width="100%",cols="50%,50%",options="header",]
+|=======================================================================
+|File Name |Description
+|/etc/nagios/nagios.cfg |Main Nagios configuration file.
+
+|/etc/nagios/cgi.cfg |CGI configuration file.
+
+|/etc/httpd/conf.d/nagios.conf |Nagios configuration for httpd.
+
+|/etc/nagios/passwd |Password file for Nagios users.
+
+|/etc/nagios/nrpe.cfg |NRPE configuration file.
+
+|/etc/nagios/gluster/gluster-contacts.cfg |Email notification
+configuration file.
+
+|/etc/nagios/gluster/gluster-host-services.cfg |Services configuration
+file that's applied to every {{ book.productTitle }} node.
+
+|/etc/nagios/gluster/gluster-host-groups.cfg |Host group templates for a
+{{ book.productTitle }} trusted storage pool.
+
+|/etc/nagios/gluster/gluster-commands.cfg |Command definitions file for
+{{ book.productTitle }} Monitoring related commands.
+
+|/etc/nagios/gluster/gluster-templates.cfg |Template definitions for
+{{ book.productTitle }} hosts and services.
+
+|/etc/nagios/gluster/snmpmanagers.conf |SNMP notification configuration
+file with the IP address and community name of SNMP managers where traps
+need to be sent.
+|=======================================================================

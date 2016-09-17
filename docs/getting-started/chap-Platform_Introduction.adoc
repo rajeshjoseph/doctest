@@ -1,0 +1,44 @@
+[[chap-Platform_Introduction]]
+= Overview 
+
+[[About_Red_Hat_Storage]]
+= About {{ book.productTitle }}
+
+{{ book.productTitle }} a software-only, scale-out storage solution
+that provides flexible and agile unstructured data storage for the
+enterprise.
+
+{{ book.productTitle }} provides new opportunities to unify data storage
+and infrastructure, increase performance, and improve availability and
+manageability in order to meet a broader set of an organization’s
+storage challenges and needs.
+
+The product can be installed and managed on-premise, or in a public
+cloud.
+
+{% if book.productTitle != "GlusterFS" %}
+[[About_GlusterFS]]
+= About GlusterFS
+{% endif %}
+
+GlusterFS aggregates various storage servers over network interconnects
+into one large parallel network file system. Based on a stackable user
+space design, it delivers exceptional performance for diverse workloads
+and is a key building block of {{ book.productTitle }}.
+
+The POSIX compatible GlusterFS servers, which use XFS file system format
+to store data on disks, can be accessed using industry-standard access
+protocols including Network File System (NFS) and Server Message Block
+(SMB) (also known as CIFS).
+
+{% if book.productTitle != "GlusterFS" %}
+[[About_On-premise_Installation]]
+= About On-premise Installation
+
+{{ book.productTitle }} for On-Premise allows physical storage to be
+utilized as a virtualized, scalable, and centrally managed pool of
+storage.
+
+{{ book.productTitle }} can be installed on commodity servers resulting
+in a powerful, massively scalable, and highly available NAS environment.
+{% endif %}
