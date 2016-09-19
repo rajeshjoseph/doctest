@@ -1,55 +1,37 @@
-= Table of Contents
 
-. link:getting-started/README.adoc[Getting Started]
-.. link:getting-started/chap-Platform_Introduction.adoc[Overview]
-.. link:getting-started/chap-Getting_Started_with_RHGS.adoc[Getting Started with Gluster]
+[[About_Gluster]]
+= About {{ book.productTitle }}
 
-. link:architecture/README.adoc[Architecture]
-.. link:architecture/chap-Gluster_Architecture_and_Concepts.adoc[Architecture and Concepts]
-.. link:architecture/chap-Trusted_Storage_Pools.adoc[Trusted Storage Pools]
-.. link:architecture/chap-Gluster_Volumes.adoc[Gluster Volumes Types]
-.. link:architecture/chap-Accessing_Data_-_Setting_Up_Clients.adoc[Accessing Data]
+{{ book.productTitle }} a software-only, scale-out storage solution
+that provides flexible and agile unstructured data storage for the
+enterprise.
 
-. link:cluster/README.adoc[Cluster Administration]
-.. link:cluster/chap-Managing_Gluster_Volumes.adoc[Managing Gluster Volumes]
-.. link:cluster/chap-Managing_Gluster_Logs.adoc[Managing Gluster Logs]
-.. link:cluster/chap-Managing_Gluster_Volume_Life-Cycle_Extensions.adoc[Managing Gluster Volume Life-Cycle Extensions]
-.. link:cluster/chap-Monitoring_Gluster.adoc[Monitoring Gluster]
-.. link:cluster/chap-Monitoring_Gluster_Workload.adoc[Monitoring Gluster Workload]
-.. link:cluster/chap-Backup_Utility.adoc[Gluster Utilities]
-{% if book.productTitle == "GlusterFS" %}
-.. link:cluster/Brick-Naming-Conventions.adoc[Brick Naming Conventions]
+{{ book.productTitle }} provides new opportunities to unify data storage
+and infrastructure, increase performance, and improve availability and
+manageability in order to meet a broader set of an organization’s
+storage challenges and needs.
+
+The product can be installed and managed on-premise, or in a public
+cloud.
+
+GlusterFS aggregates various storage servers over network interconnects
+into one large parallel network file system. Based on a stackable user
+space design, it delivers exceptional performance for diverse workloads
+and is a key building block of {{ book.productTitle }}.
+
+The POSIX compatible GlusterFS servers, which use XFS file system format
+to store data on disks, can be accessed using industry-standard access
+protocols including Network File System (NFS) and Server Message Block
+(SMB) (also known as CIFS).
+
+{% if book.productTitle != "GlusterFS" %}
+[[About_On-premise_Installation]]
+= About On-premise Installation
+
+{{ book.productTitle }} for On-Premise allows physical storage to be
+utilized as a virtualized, scalable, and centrally managed pool of
+storage.
+
+{{ book.productTitle }} can be installed on commodity servers resulting
+in a powerful, massively scalable, and highly available NAS environment.
 {% endif %}
-.. link:cluster/chap-Integrating_Gluster_AD.adoc[Active Directory Integration]
-.. link:cluster/chap-Configuring_Gluster_for_Enhancing_Performance.adoc[Performance Tuning]
-.. link:cluster/chap-Managing_Containerized_Gluster.adoc[Managing Containerized Gluster]
-
-. link:features/README.adoc[Gluster Features]
-.. link:features/chap-Network_Encryption.adoc[Network Encryption]
-.. link:features/chap-Managing_Geo-replication.adoc[Managing Geo-replication]
-.. link:features/chap-Managing_Directory_Quotas.adoc[Managing Directory Quotas]
-.. link:features/chap-Managing_Sharding.adoc[Managing Sharding]
-.. link:features/chap-Managing_Snapshots.adoc[Managing Snapshots]
-.. link:features/chap-Detecting_Data_Corruption_with_Bitrots.adoc[Detecting Data Corruption with BitRot]
-.. link:features/chap-Managing_Tiering.adoc[Managing Tiering]
-{% if book.productTitle == "GlusterFS" %}
-.. link:features/Export-Netgroup-Authentication.adoc[Export and Netgroup Authentication]
-.. link:features/arbiter-volume-and-quorum.adoc[Arbiter Volume and Quorum]
-.. link:features/trash.adoc[Trash for GlusterFS]
-{% endif %}
-
-. link:non-file/README.adoc[Non-File Interfaces]
-.. link:non-file/chap-Managing_Object_Store.adoc[Managing Object Store]
-.. link:non-file/chap-Administering_the_Hortonworks_Data_Platform_on_Gluster.adoc[Managing Hortonworks Data Platform]
-
-. link:appendices/README.adoc[Appendices]
-.. link:appendices/chap-Troubleshooting.adoc[Troubleshooting]
-.. link:appendices/chap-Recommended_Configuration_Dispersed_Volumes.adoc[Recommended Configurations - Dispersed Volume]
-.. link:appendices/chap-Nagios_Configuration_Files.adoc[Nagios Configuration Files]
-.. link:appendices/chap-Manually_Resolving_Splitbrains.adoc[Manually Recovering File Split-brain]
-{% if book.productTitle == "GlusterFS" %}
-.. link:appendices/Bareos.adoc[Bareos on GlusterFS]
-.. link:appendices/puppet.adoc[Puppet-Gluster]
-.. link:appendices/GlusterFS-iSCSI.adoc[GlusterFS iSCSI]
-{% endif %}
-
