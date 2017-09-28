@@ -1,7 +1,7 @@
 = Summary
 
 . link:getting-started/README.adoc[Getting Started]
-.. link:getting-started/chap-Platform_Introduction.adoc[Overview]
+.. link:getting-started/chap-Platform_Introduction.adoc[Platform Introduction]
 .. link:getting-started/chap-Getting_Started_with_RHGS.adoc[Getting Started with Gluster]
 
 . link:architecture/README.adoc[Architecture]
